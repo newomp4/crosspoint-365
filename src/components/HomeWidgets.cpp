@@ -27,6 +27,7 @@ constexpr int VALUE_FONT = HELVETICANEUE_14_FONT_ID;  // Bold cut in the regular
 constexpr int CAPTION_FONT = UI_10_FONT_ID;
 constexpr int ICON_SIZE = 24;
 constexpr int ICON_GAP = 10;
+constexpr int SLOT_GAP = 12;
 constexpr int PAD_Y = 6;
 constexpr int CAPTION_GAP = 2;
 
@@ -249,33 +250,55 @@ void HomeWidgets::draw(const GfxRenderer& renderer, const Rect& band, const bool
   const int rows = rowsFor(n);
   const int cols = (n + rows - 1) / rows;
   const int side = UITheme::getInstance().getMetrics().contentSidePadding;
-  const int slotWidth = (band.width - 2 * side) / cols;
   const int rowStride = rowHeight(renderer, compact) - PAD_Y;  // adjacent rows share one padding
   const int valueLine = std::max(renderer.getLineHeight(VALUE_FONT), ICON_SIZE);
   const int valueOffset = PAD_Y + (valueLine - renderer.getLineHeight(VALUE_FONT)) / 2;
   const int iconOffset = PAD_Y + (valueLine - ICON_SIZE) / 2;
   const int captionOffset = PAD_Y + valueLine + CAPTION_GAP;
-  const int textWidth = slotWidth - ICON_SIZE - ICON_GAP - 4;
   const CalendarDate date = CalendarDate::today();
 
+  // Resolve every slot's content first: widths are content-driven ("12:58 PM"
+  // needs more room than "12"), so each row is laid out like a flex row —
+  // natural widths, spare space shared out evenly, proportional shrink when
+  // the row overflows (captions then fall back to their short forms).
+  Content contents[CrossPointSettings::HOME_WIDGET_SLOTS];
+  int natural[CrossPointSettings::HOME_WIDGET_SLOTS] = {0};
   int slot = 0;
-  for (int i = 0; i < CrossPointSettings::HOME_WIDGET_SLOTS; i++) {
+  for (int i = 0; i < CrossPointSettings::HOME_WIDGET_SLOTS && slot < n; i++) {
     const uint8_t kind = slotKind(i);
     if (kind == CrossPointSettings::HW_NONE) continue;
-    Content c;
+    Content& c = contents[slot];
     fill(kind, date, c);
-    const int x = band.x + side + (slot % cols) * slotWidth;
-    const int y = band.y + (slot / cols) * rowStride;
-    const int textX = x + ICON_SIZE + ICON_GAP;
-    if (c.icon) drawIcon(renderer, *c.icon, x, y + iconOffset);
-    if (c.value[0]) {
-      const std::string value = renderer.truncatedText(VALUE_FONT, c.value, textWidth);
-      renderer.drawText(VALUE_FONT, textX, y + valueOffset, value.c_str(), true);
-    }
-    if (!compact && c.caption[0]) {
-      const std::string caption = fitCaption(renderer, c, textWidth);
-      renderer.drawText(CAPTION_FONT, textX, y + captionOffset, caption.c_str(), true);
-    }
+    int textWidth = c.value[0] ? renderer.getTextWidth(VALUE_FONT, c.value) : 0;
+    if (!compact && c.caption[0]) textWidth = std::max(textWidth, renderer.getTextWidth(CAPTION_FONT, c.caption));
+    natural[slot] = ICON_SIZE + ICON_GAP + textWidth;
     slot++;
+  }
+
+  const int available = band.width - 2 * side - (cols - 1) * SLOT_GAP;
+  for (int row = 0; row < rows; row++) {
+    const int first = row * cols;
+    const int inRow = std::min(cols, n - first);
+    int sum = 0;
+    for (int k = 0; k < inRow; k++) sum += natural[first + k];
+    const int spare = sum < available ? (available - sum) / inRow : 0;
+    int x = band.x + side;
+    const int y = band.y + row * rowStride;
+    for (int k = 0; k < inRow; k++) {
+      const Content& c = contents[first + k];
+      const int width = sum <= available ? natural[first + k] + spare : available * natural[first + k] / sum;
+      const int textWidth = std::max(0, width - ICON_SIZE - ICON_GAP);
+      const int textX = x + ICON_SIZE + ICON_GAP;
+      if (c.icon) drawIcon(renderer, *c.icon, x, y + iconOffset);
+      if (c.value[0]) {
+        const std::string value = renderer.truncatedText(VALUE_FONT, c.value, textWidth);
+        renderer.drawText(VALUE_FONT, textX, y + valueOffset, value.c_str(), true);
+      }
+      if (!compact && c.caption[0]) {
+        const std::string caption = fitCaption(renderer, c, textWidth);
+        renderer.drawText(CAPTION_FONT, textX, y + captionOffset, caption.c_str(), true);
+      }
+      x += width + SLOT_GAP;
+    }
   }
 }
