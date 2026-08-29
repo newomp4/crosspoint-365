@@ -77,17 +77,31 @@ void fill(const uint8_t kind, const CalendarDate& date, Content& c) {
   const auto& s = SETTINGS;
   const int32_t today = date.epochDay();
   switch (kind) {
-    case CrossPointSettings::HW_CLOCK:
+    case CrossPointSettings::HW_CLOCK: {
       c.icon = &widget_icon_clock;
       if (!halClock.formatTime(c.value, sizeof(c.value), s.clockUtcOffsetQ, s.clockFormat == 1)) {
         snprintf(c.value, sizeof(c.value), "--:--");
         snprintf(c.caption, sizeof(c.caption), "%s", tr(STR_HW_NO_CLOCK));
-      } else if (date.valid) {
-        formatShortDate(date, c.caption, sizeof(c.caption));
-        snprintf(c.captionShort, sizeof(c.captionShort), "%s %u", I18N.get(MONTH_SHORT[date.month - 1]),
-                 static_cast<unsigned>(date.day));
+        break;
+      }
+      // 12-hour: keep the value compact and move the AM/PM into the caption.
+      char period[8] = "";
+      if (char* space = strchr(c.value, ' ')) {
+        *space = '\0';
+        snprintf(period, sizeof(period), "%s \xC2\xB7 ", space + 1);
+      }
+      if (date.valid) {
+        char full[24], brief[16];
+        formatShortDate(date, full, sizeof(full));
+        snprintf(brief, sizeof(brief), "%s %u", I18N.get(MONTH_SHORT[date.month - 1]), static_cast<unsigned>(date.day));
+        snprintf(c.caption, sizeof(c.caption), "%s%s", period, full);
+        snprintf(c.captionShort, sizeof(c.captionShort), "%s%s", period, brief);
+      } else if (period[0]) {
+        period[strlen(period) - 4] = '\0';  // drop the separator
+        snprintf(c.caption, sizeof(c.caption), "%s", period);
       }
       break;
+    }
     case CrossPointSettings::HW_DATE:
       c.icon = &widget_icon_calendar;
       if (date.valid) {
@@ -168,9 +182,9 @@ void fill(const uint8_t kind, const CalendarDate& date, Content& c) {
         char hi[12], lo[12];
         WeatherStore::formatTemperature(WEATHER.maxC10(), s.weatherUnit, hi, sizeof(hi));
         WeatherStore::formatTemperature(WEATHER.minC10(), s.weatherUnit, lo, sizeof(lo));
-        const char* condition = I18N.get(WeatherStore::conditionName(WEATHER.weatherCode()));
-        snprintf(c.caption, sizeof(c.caption), "%s \xC2\xB7 %s/%s", condition, hi, lo);
-        snprintf(c.captionShort, sizeof(c.captionShort), "%s", condition);
+        snprintf(c.caption, sizeof(c.caption), "%s \xC2\xB7 %s/%s",
+                 I18N.get(WeatherStore::conditionName(WEATHER.weatherCode())), hi, lo);
+        snprintf(c.captionShort, sizeof(c.captionShort), "%s/%s", hi, lo);
       }
       break;
     }
@@ -257,21 +271,28 @@ void HomeWidgets::draw(const GfxRenderer& renderer, const Rect& band, const bool
   const int captionOffset = PAD_Y + valueLine + CAPTION_GAP;
   const CalendarDate date = CalendarDate::today();
 
-  // Resolve every slot's content first: widths are content-driven ("12:58 PM"
-  // needs more room than "12"), so each row is laid out like a flex row —
-  // natural widths, spare space shared out evenly, proportional shrink when
-  // the row overflows (captions then fall back to their short forms).
-  Content contents[CrossPointSettings::HOME_WIDGET_SLOTS];
-  int natural[CrossPointSettings::HOME_WIDGET_SLOTS] = {0};
+  // Widths are content-driven ("12:58" and "128h" need different room), so
+  // each row is laid out like a flex row: every slot starts at its natural
+  // width and spare space is shared evenly. When a row overflows, the widest
+  // slot gives way first — its short caption, then clipping — so one long
+  // caption never squeezes its neighbours.
+  constexpr int SLOTS = CrossPointSettings::HOME_WIDGET_SLOTS;
+  Content contents[SLOTS];
+  int fullWidth[SLOTS] = {0};
+  int shortWidth[SLOTS] = {0};
+  bool useShort[SLOTS] = {false};
   int slot = 0;
-  for (int i = 0; i < CrossPointSettings::HOME_WIDGET_SLOTS && slot < n; i++) {
+  for (int i = 0; i < SLOTS && slot < n; i++) {
     const uint8_t kind = slotKind(i);
     if (kind == CrossPointSettings::HW_NONE) continue;
     Content& c = contents[slot];
     fill(kind, date, c);
-    int textWidth = c.value[0] ? renderer.getTextWidth(VALUE_FONT, c.value) : 0;
-    if (!compact && c.caption[0]) textWidth = std::max(textWidth, renderer.getTextWidth(CAPTION_FONT, c.caption));
-    natural[slot] = ICON_SIZE + ICON_GAP + textWidth;
+    const int valueWidth = c.value[0] ? renderer.getTextWidth(VALUE_FONT, c.value) : 0;
+    const int captionWidth = (!compact && c.caption[0]) ? renderer.getTextWidth(CAPTION_FONT, c.caption) : 0;
+    const int shortCaptionWidth =
+        (!compact && c.captionShort[0]) ? renderer.getTextWidth(CAPTION_FONT, c.captionShort) : captionWidth;
+    fullWidth[slot] = ICON_SIZE + ICON_GAP + std::max(valueWidth, captionWidth);
+    shortWidth[slot] = ICON_SIZE + ICON_GAP + std::max(valueWidth, std::min(captionWidth, shortCaptionWidth));
     slot++;
   }
 
@@ -279,15 +300,34 @@ void HomeWidgets::draw(const GfxRenderer& renderer, const Rect& band, const bool
   for (int row = 0; row < rows; row++) {
     const int first = row * cols;
     const int inRow = std::min(cols, n - first);
+    int width[SLOTS];
+    for (int k = 0; k < inRow; k++) width[k] = fullWidth[first + k];
+    for (;;) {
+      int sum = 0;
+      int widest = 0;
+      for (int k = 0; k < inRow; k++) {
+        sum += width[k];
+        if (width[k] > width[widest]) widest = k;
+      }
+      if (sum <= available) break;
+      if (!useShort[first + widest] && shortWidth[first + widest] < width[widest]) {
+        useShort[first + widest] = true;
+        width[widest] = shortWidth[first + widest];
+        continue;
+      }
+      // Nothing left to shorten: the widest slot takes what remains and clips.
+      width[widest] = std::max(ICON_SIZE + ICON_GAP, available - (sum - width[widest]));
+      break;
+    }
     int sum = 0;
-    for (int k = 0; k < inRow; k++) sum += natural[first + k];
-    const int spare = sum < available ? (available - sum) / inRow : 0;
+    for (int k = 0; k < inRow; k++) sum += width[k];
+    const int spare = std::max(0, available - sum) / inRow;
+
     int x = band.x + side;
     const int y = band.y + row * rowStride;
     for (int k = 0; k < inRow; k++) {
       const Content& c = contents[first + k];
-      const int width = sum <= available ? natural[first + k] + spare : available * natural[first + k] / sum;
-      const int textWidth = std::max(0, width - ICON_SIZE - ICON_GAP);
+      const int textWidth = width[k] + spare - ICON_SIZE - ICON_GAP;
       const int textX = x + ICON_SIZE + ICON_GAP;
       if (c.icon) drawIcon(renderer, *c.icon, x, y + iconOffset);
       if (c.value[0]) {
@@ -298,7 +338,7 @@ void HomeWidgets::draw(const GfxRenderer& renderer, const Rect& band, const bool
         const std::string caption = fitCaption(renderer, c, textWidth);
         renderer.drawText(CAPTION_FONT, textX, y + captionOffset, caption.c_str(), true);
       }
-      x += width + SLOT_GAP;
+      x += width[k] + spare + SLOT_GAP;
     }
   }
 }
