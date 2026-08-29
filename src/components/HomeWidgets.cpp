@@ -27,7 +27,7 @@ constexpr int VALUE_FONT = HELVETICANEUE_14_FONT_ID;  // Bold cut in the regular
 constexpr int CAPTION_FONT = UI_10_FONT_ID;
 constexpr int ICON_SIZE = 24;
 constexpr int ICON_GAP = 10;
-constexpr int SLOT_GAP = 12;
+constexpr int SLOT_GAP = 8;
 constexpr int PAD_Y = 6;
 constexpr int CAPTION_GAP = 2;
 
