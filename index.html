@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install CrossPoint 365</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+  :root { --paper:#f2f0eb; --paper-2:#e8e5de; --ink:#1a1a18; --ink-2:#6b6963; --line:#d8d5cd; --accent:#2e5f8c; --accent-ink:#fff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:Geist,"Helvetica Neue",Helvetica,Arial,sans-serif; font-size:16px; line-height:1.55; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:640px; margin:0 auto; padding:48px 24px 72px; }
+  .eyebrow { font-family:"Geist Mono",ui-monospace,Menlo,monospace; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-2); }
+  h1 { font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; font-weight:700; font-size:clamp(32px,6vw,44px); letter-spacing:-.02em; line-height:1.05; margin:8px 0 12px; }
+  p { margin:0 0 14px; }
+  .lead { color:var(--ink-2); font-size:17px; max-width:56ch; }
+  ol { padding-left:22px; margin:0 0 20px; } li { margin:6px 0; }
+  .card { background:var(--paper-2); border:1px solid var(--line); border-radius:12px; padding:22px 24px; margin:26px 0; }
+  .card h2 { font-size:19px; margin:0 0 10px; font-weight:700; letter-spacing:-.01em; }
+  esp-web-install-button { display:block; margin:16px 0 6px; }
+  .btn { display:inline-block; font:inherit; font-weight:500; font-size:17px; background:var(--accent); color:var(--accent-ink); border:0; border-radius:10px; padding:14px 26px; cursor:pointer; }
+  .btn:hover { filter:brightness(1.08); }
+  .btn:focus-visible { outline:3px solid var(--ink); outline-offset:3px; }
+  .muted { color:var(--ink-2); font-size:14.5px; }
+  code { font-family:"Geist Mono",ui-monospace,Menlo,monospace; font-size:.92em; background:#e2dfd7; padding:1px 5px; border-radius:4px; }
+  a { color:var(--accent); }
+  details { margin-top:8px; } summary { cursor:pointer; font-weight:500; }
+</style>
+<script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Xteink X3 · CrossPoint fork · v1.5.0-365</div>
+  <h1>Install CrossPoint 365</h1>
+  <p class="lead">Year Progress and Reading Heatmap sleep screens, plus the home-screen widgets. Flashes over USB straight from this page — nothing to download or install. Your SD card (books, reading progress) is untouched.</p>
+
+  <div class="card">
+    <h2>1 · Plug the X3 into this PC with a USB data cable</h2>
+    <p class="muted">Turn the X3 on. Windows 10/11 recognizes its USB port on its own (it appears as a “USB JTAG/serial debug unit” COM port). If it doesn’t show up, try another cable — many USB-A cables are charge-only.</p>
+  </div>
+
+  <div class="card">
+    <h2>2 · Use Chrome or Edge, then click Install</h2>
+    <esp-web-install-button manifest="manifest.json">
+      <button slot="activate" class="btn">Install CrossPoint 365</button>
+      <span slot="unsupported" class="muted">This browser can’t talk to USB devices. Open this page in Chrome or Microsoft Edge.</span>
+      <span slot="not-allowed" class="muted">Serial access needs an https page — reload over https.</span>
+    </esp-web-install-button>
+    <p class="muted">A dialog lists the COM ports; pick the X3’s and confirm. The flash takes about a minute; the X3 reboots into the new firmware afterwards. When asked, do <em>not</em> erase the device — it isn’t needed.</p>
+  </div>
+
+  <div class="card">
+    <h2>3 · On the X3</h2>
+    <ol>
+      <li><b>Settings → Display → Sleep Screen</b> → <i>Year Progress</i> or <i>Reading Heatmap</i>; a settings row appears right below it (with Preview).</li>
+      <li><b>Settings → Display → Home Widgets</b> → choose the four slots; set a city for weather and tap <i>Refresh weather now</i>.</li>
+      <li>Both need the clock: run <i>Sync clock now</i> once over Wi-Fi. The X3 keeps time in its RTC afterwards.</li>
+    </ol>
+  </div>
+
+  <details>
+    <summary>Other ways to install</summary>
+    <p style="margin-top:10px"><b>No cable:</b> copy <a href="firmware.bin" download>firmware.bin</a> to the root of the X3’s SD card, then <b>Settings → System → SD Card Firmware Update</b> (if your current CrossPoint has that entry).</p>
+    <p><b>Manual esptool:</b> <a href="merged-full-image.bin" download>merged-full-image.bin</a> is the whole flash as one file for offset <code>0x0</code>: <code>esptool --chip esp32c3 write-flash 0x0 merged-full-image.bin</code>. A ready-made Windows package with esptool.exe is on the <a href="https://github.com/newomp4/crosspoint-365/releases">releases page</a>.</p>
+    <p class="muted">Source: <a href="https://github.com/newomp4/crosspoint-365">github.com/newomp4/crosspoint-365</a> — a fork of CrossPoint Reader (MIT).</p>
+  </details>
+</div>
+</body>
+</html>
