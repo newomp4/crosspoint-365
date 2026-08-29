@@ -61,6 +61,49 @@ uint8_t CrossPointSettings::sleepTimeoutEnumToMinutes(const uint8_t legacyValue)
   }
 }
 
+namespace {
+// Year Progress / Reading Heatmap fields. Persisted here rather than through
+// SettingsList (see CrossPointSettings.h); `max` is inclusive and doubles as
+// the enum upper bound.
+struct DotsField {
+  const char* key;
+  uint8_t CrossPointSettings::* field;
+  uint8_t min;
+  uint8_t max;
+};
+using S = CrossPointSettings;
+constexpr DotsField DOTS_FIELDS[] = {
+    {"dotsMargin", &S::dotsMargin, 0, S::DOTS_SCALE_COUNT - 1},
+    {"dotsBackground", &S::dotsBackground, 0, S::DOTS_BACKGROUND_COUNT - 1},
+    {"dotsTitleFont", &S::dotsTitleFont, 0, S::DOTS_FONT_COUNT - 1},
+    {"dotsTitleSize", &S::dotsTitleSize, 0, S::DOTS_SCALE_COUNT - 1},
+    {"dotsSubtitleFont", &S::dotsSubtitleFont, 0, S::DOTS_FONT_COUNT - 1},
+    {"dotsSubtitleSize", &S::dotsSubtitleSize, 0, S::DOTS_SCALE_COUNT - 1},
+    {"dotsTextPosition", &S::dotsTextPosition, 0, S::DOTS_TEXT_POSITION_COUNT - 1},
+    {"dotsTextAlign", &S::dotsTextAlign, 0, S::DOTS_TEXT_ALIGN_COUNT - 1},
+    {"dotsOrientation", &S::dotsOrientation, 0, S::ORIENTATION_COUNT - 1},
+    {"yearColumns", &S::yearColumns, S::DOTS_COLUMNS_MIN, S::DOTS_COLUMNS_MAX},
+    {"yearLayout", &S::yearLayout, 0, S::YEAR_LAYOUT_COUNT - 1},
+    {"yearDotShape", &S::yearDotShape, 0, S::DOTS_SHAPE_COUNT - 1},
+    {"yearDotSize", &S::yearDotSize, 0, S::DOTS_SIZE_COUNT - 1},
+    {"yearPastStyle", &S::yearPastStyle, 0, S::YEAR_DOT_STYLE_COUNT - 1},
+    {"yearTodayStyle", &S::yearTodayStyle, 0, S::YEAR_TODAY_STYLE_COUNT - 1},
+    {"yearFutureStyle", &S::yearFutureStyle, 0, S::YEAR_DOT_STYLE_COUNT - 1},
+    {"yearTitle", &S::yearTitle, 0, S::YEAR_TEXT_COUNT - 1},
+    {"yearSubtitle", &S::yearSubtitle, 0, S::YEAR_TEXT_COUNT - 1},
+    {"heatDays", &S::heatDays, S::HEAT_DAYS_MIN, S::HEAT_DAYS_MAX},
+    {"heatLayout", &S::heatLayout, 0, S::HEAT_LAYOUT_COUNT - 1},
+    {"heatColumns", &S::heatColumns, S::DOTS_COLUMNS_MIN, S::DOTS_COLUMNS_MAX},
+    {"heatWeekStart", &S::heatWeekStart, 0, S::WEEK_START_COUNT - 1},
+    {"heatScale", &S::heatScale, 0, S::HEAT_SCALE_COUNT - 1},
+    {"heatEmptyStyle", &S::heatEmptyStyle, 0, S::HEAT_EMPTY_COUNT - 1},
+    {"heatShape", &S::heatShape, 0, S::DOTS_SHAPE_COUNT - 1},
+    {"heatDotSize", &S::heatDotSize, 0, S::DOTS_SIZE_COUNT - 1},
+    {"heatTitle", &S::heatTitle, 0, S::HEAT_TEXT_COUNT - 1},
+    {"heatSubtitle", &S::heatSubtitle, 0, S::HEAT_TEXT_COUNT - 1},
+};
+}  // namespace
+
 void CrossPointSettings::toJson(JsonDocument& doc) const {
   const CrossPointSettings& s = *this;
 
@@ -99,6 +142,11 @@ void CrossPointSettings::toJson(JsonDocument& doc) const {
   // Dictionary folder name — uses dynamic getter/setter in SettingsList, save manually
   if (dictionaryName[0] != '\0') {
     doc["dictionaryName"] = dictionaryName;
+  }
+
+  // Year Progress / Reading Heatmap sleep screens — see DOTS_FIELDS.
+  for (const auto& f : DOTS_FIELDS) {
+    doc[f.key] = s.*(f.field);
   }
 
   // Language -- managed by LanguageSelectActivity, not in SettingsList.
@@ -216,6 +264,14 @@ bool CrossPointSettings::fromJson(JsonVariantConst doc) {
   }
   // Dictionary folder name — uses dynamic getter/setter in SettingsList, load manually
   copyToField(dictionaryName, doc["dictionaryName"] | "", sizeof(dictionaryName));
+
+  // Year Progress / Reading Heatmap sleep screens — out-of-range values fall
+  // back to the struct-initializer default.
+  for (const auto& f : DOTS_FIELDS) {
+    const uint8_t fieldDefault = s.*(f.field);
+    const uint8_t v = doc[f.key] | fieldDefault;
+    s.*(f.field) = (v < f.min || v > f.max) ? fieldDefault : v;
+  }
 
   // Language -- stored as code string for stability across enum reorders.
   if (doc["language"].is<const char*>()) {

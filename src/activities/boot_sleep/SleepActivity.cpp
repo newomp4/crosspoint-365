@@ -24,6 +24,7 @@
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "activities/reader/ReaderUtils.h"
+#include "components/DotsScreen.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "images/Logo120.h"
@@ -534,6 +535,10 @@ void SleepActivity::onEnter() {
   switch (SETTINGS.sleepScreen) {
     case (CrossPointSettings::SLEEP_SCREEN_MODE::BLANK):
       return renderBlankSleepScreen();
+    case (CrossPointSettings::SLEEP_SCREEN_MODE::YEAR_PROGRESS):
+      return renderYearProgressSleepScreen();
+    case (CrossPointSettings::SLEEP_SCREEN_MODE::READING_HEATMAP):
+      return renderReadingHeatmapSleepScreen();
     case (CrossPointSettings::SLEEP_SCREEN_MODE::CUSTOM):
       return renderCustomSleepScreen();
     case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER):
@@ -841,4 +846,12 @@ void SleepActivity::renderLastScreenSleepScreen() const {
 void SleepActivity::renderBlankSleepScreen() const {
   renderer.clearScreen();
   renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+}
+
+void SleepActivity::renderYearProgressSleepScreen() const {
+  DotsScreen::render(renderer, DotsScreen::Kind::YearProgress, CalendarDate::today());
+}
+
+void SleepActivity::renderReadingHeatmapSleepScreen() const {
+  DotsScreen::render(renderer, DotsScreen::Kind::ReadingHeatmap, CalendarDate::today());
 }

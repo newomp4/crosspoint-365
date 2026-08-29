@@ -29,6 +29,7 @@
 #include "KOReaderCredentialStore.h"
 #include "MappedInputManager.h"
 #include "OpdsServerStore.h"
+#include "ReadingStats.h"
 #include "RecentBooksStore.h"
 #include "SdCardFontSystem.h"
 #include "activities/Activity.h"
@@ -123,6 +124,24 @@ EpdFontFamily ui10FontFamily(&ui10MediumFont, &ui10BoldFont);
 EpdFont ui12MediumFont(&ubuntu_12_medium);
 EpdFont ui12BoldFont(&ubuntu_12_bold);
 EpdFontFamily ui12FontFamily(&ui12MediumFont, &ui12BoldFont);
+
+// Year Progress / Reading Heatmap sleep-screen fonts (ASCII-only display cuts).
+// Helvetica Neue ships only its Bold weight, in the family's regular slot.
+EpdFont helveticaNeue14BoldFont(&helveticaneue_14_bold);
+EpdFontFamily helveticaNeue14FontFamily(&helveticaNeue14BoldFont);
+EpdFont helveticaNeue24BoldFont(&helveticaneue_24_bold);
+EpdFontFamily helveticaNeue24FontFamily(&helveticaNeue24BoldFont);
+EpdFont helveticaNeue40BoldFont(&helveticaneue_40_bold);
+EpdFontFamily helveticaNeue40FontFamily(&helveticaNeue40BoldFont);
+EpdFont geist14MediumFont(&geist_14_medium);
+EpdFont geist14BoldFont(&geist_14_bold);
+EpdFontFamily geist14FontFamily(&geist14MediumFont, &geist14BoldFont);
+EpdFont geist24MediumFont(&geist_24_medium);
+EpdFont geist24BoldFont(&geist_24_bold);
+EpdFontFamily geist24FontFamily(&geist24MediumFont, &geist24BoldFont);
+EpdFont geist40MediumFont(&geist_40_medium);
+EpdFont geist40BoldFont(&geist_40_bold);
+EpdFontFamily geist40FontFamily(&geist40MediumFont, &geist40BoldFont);
 
 // Definitions for SilentRestart.h. RTC_NOINIT survives ESP.restart() but not power loss.
 RTC_NOINIT_ATTR uint32_t silentRebootMagic;
@@ -333,6 +352,12 @@ void setupDisplayAndFonts(bool seamless = false) {
   renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);
   renderer.insertFont(UI_12_FONT_ID, ui12FontFamily);
   renderer.insertFont(SMALL_FONT_ID, smallFontFamily);
+  renderer.insertFont(HELVETICANEUE_14_FONT_ID, helveticaNeue14FontFamily);
+  renderer.insertFont(HELVETICANEUE_24_FONT_ID, helveticaNeue24FontFamily);
+  renderer.insertFont(HELVETICANEUE_40_FONT_ID, helveticaNeue40FontFamily);
+  renderer.insertFont(GEIST_14_FONT_ID, geist14FontFamily);
+  renderer.insertFont(GEIST_24_FONT_ID, geist24FontFamily);
+  renderer.insertFont(GEIST_40_FONT_ID, geist40FontFamily);
 
   // Discover and load SD card fonts
   sdFontSystem.begin(renderer);
@@ -619,10 +644,18 @@ void loop() {
 
   // Check for any user activity (button press or release) or active background work
   static unsigned long lastActivityTime = millis();
-  if (gpio.wasAnyPressed() || gpio.wasAnyReleased() || gpio.wasTouchActivity() || halTiltSensor.hadActivity() ||
-      activityManager.preventAutoSleep()) {
+  const bool userInput =
+      gpio.wasAnyPressed() || gpio.wasAnyReleased() || gpio.wasTouchActivity() || halTiltSensor.hadActivity();
+  if (userInput || activityManager.preventAutoSleep()) {
     lastActivityTime = millis();         // Reset inactivity timer
     powerManager.setPowerSaving(false);  // Restore normal CPU frequency on user activity
+  }
+
+  // Reading-time statistics: inputs while a book is open mark the reader as
+  // in use; the tick banks idle-capped time and flushes to the SD card.
+  if (activityManager.isReaderActivity()) {
+    if (userInput) READING_STATS.noteInput(millis());
+    READING_STATS.tick(millis());
   }
 
   // Let wake continue as soon as its hold has been verified. The release can

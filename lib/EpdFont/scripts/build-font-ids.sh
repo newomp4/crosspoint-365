@@ -99,3 +99,49 @@ ruby -rdigest -e 'puts [
   "./notosans_8_regular.h",
 ].map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16) }.sum % (2 ** 32) - (2 ** 31)'
 ))"
+
+echo "#define HELVETICANEUE_14_FONT_ID ($(
+ruby -rdigest -e 'puts [
+  "./helveticaneue_14_bold.h",
+].map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16) }.sum % (2 ** 32) - (2 ** 31)'
+))"
+
+echo "#define HELVETICANEUE_24_FONT_ID ($(
+ruby -rdigest -e 'puts [
+  "./helveticaneue_24_bold.h",
+].map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16) }.sum % (2 ** 32) - (2 ** 31)'
+))"
+
+echo "#define HELVETICANEUE_40_FONT_ID ($(
+ruby -rdigest -e 'puts [
+  "./helveticaneue_40_bold.h",
+].map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16) }.sum % (2 ** 32) - (2 ** 31)'
+))"
+
+echo "#define GEIST_14_FONT_ID ($(
+ruby -rdigest -e 'puts [
+  "./geist_14_medium.h",
+  "./geist_14_bold.h",
+].map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16) }.sum % (2 ** 32) - (2 ** 31)'
+))"
+
+echo "#define GEIST_24_FONT_ID ($(
+ruby -rdigest -e 'puts [
+  "./geist_24_medium.h",
+  "./geist_24_bold.h",
+].map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16) }.sum % (2 ** 32) - (2 ** 31)'
+))"
+
+echo "#define GEIST_40_FONT_ID ($(
+ruby -rdigest -e 'puts [
+  "./geist_40_medium.h",
+  "./geist_40_bold.h",
+].map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16) }.sum % (2 ** 32) - (2 ** 31)'
+))"
+
+echo ""
+echo "// Font ID 0 is reserved as the \"not found\" sentinel."
+echo "// Guard against any hash accidentally producing 0."
+for id in NOTOSERIF_12 NOTOSERIF_14 NOTOSERIF_16 NOTOSERIF_18 NOTOSANS_12 NOTOSANS_14 NOTOSANS_16 NOTOSANS_18 UI_10 UI_12 SMALL HELVETICANEUE_14 HELVETICANEUE_24 HELVETICANEUE_40 GEIST_14 GEIST_24 GEIST_40; do
+  echo "static_assert(${id}_FONT_ID != 0, \"Font ID collision with sentinel\");"
+done

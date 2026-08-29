@@ -517,6 +517,8 @@ The **Sleep Screen** setting controls what is displayed when the device goes to 
 | **Cover + Custom** | The cover of the currently open book, shown only while actively reading. Falls back to **Custom** behavior when not reading. |
 | **Transparent**    | A BMP or PNG overlay drawn over the current screen. Supports PNG and 32-bit BGRA alpha transparency, and treats white as transparent in regular BMPs. Falls back to **Dark** if no valid overlay image is found. |
 | **None**           | A blank screen.                                                                                                              |
+| **Year Progress**  | A grid of one dot per day of the year; days that have passed are grayed out. See [Year Progress & Reading Heatmap](#379-year-progress--reading-heatmap). |
+| **Reading Heatmap**| One square per recent day, shaded by how long you read that day (GitHub-style). See [Year Progress & Reading Heatmap](#379-year-progress--reading-heatmap). |
 
 #### Cover settings
 
@@ -550,6 +552,30 @@ Transparent overlay files are intentionally separate from normal sleep images. R
 
 > [!TIP]
 > You can set an image as the sleep screen cover directly from the BMP image viewer in the **[Browse Files](#33-browse-files-screen)** screen.
+
+#### 3.7.9 Year Progress & Reading Heatmap
+
+Two minimal "dot grid" sleep screens, both driven by the device's clock:
+
+- **Year Progress** draws one dot per day of the current year (365 or 366). Every day that has already passed, and today, is grayed out, so the grid shows at a glance how much of the year is gone. The default layout is a 15-column grid with the year in large type and the percentage complete underneath.
+- **Reading Heatmap** draws one square per day for the last *N* days (30 by default), laid out in calendar weeks. The more you read on a day, the darker its square; days without reading are drawn as outlines. Reading time is tracked automatically while a book is open (time between page turns counts, up to 5 minutes per gap) and stored in `/.crosspoint/reading_stats.csv` on the SD card.
+
+Select either mode under **Settings → Display → Sleep Screen**. A **Year Progress Settings** / **Reading Heatmap Settings** row then appears directly below it with everything that can be changed:
+
+| Setting | What it does |
+| ------- | ------------ |
+| **Preview** | Draws the sleep screen full-screen right now; press any button to return. |
+| **Columns** / **Layout** | Grid width, or "Rows by Month" (Year Progress) / calendar "Weeks" (Heatmap). |
+| **Days Shown**, **Week Starts On**, **Shade Scale**, **Days Without Reading** | Heatmap window, week alignment, shading thresholds (relative to your busiest day, or fixed minute steps), and how empty days look. |
+| **Dot Shape** / **Dot Size** | Circle, square or rounded square; dot diameter relative to the grid cell. |
+| **Past Days** / **Today** / **Remaining Days** | Year Progress dot styles: solid, light gray, dark gray, outline or hidden. |
+| **Title** / **Subtitle** | What the two text lines show (year, percent, day of year, days left, total reading time, streak, …) or none. |
+| **Title Font**, **Title Size**, **Subtitle Font**, **Subtitle Size** | Helvetica Neue Bold, Geist Bold or Geist Medium, in three sizes. |
+| **Text Position** / **Text Alignment** | Text above or below the grid; left, center or right aligned. |
+| **Background**, **Margins**, **Orientation** | White or black paper, outer margin, and portrait/landscape rendering. |
+| **Sync clock now** | Both screens need the date: sync the clock over Wi-Fi once (the X3 keeps time in its RTC afterwards). Until then the screen shows a "Clock not set" hint. |
+
+The text styling (fonts, sizes, position, background, margins, orientation) is shared by both screens, so switching between them keeps the same look.
 
 ---
 

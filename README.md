@@ -1,4 +1,21 @@
-# CrossPoint Reader
+# CrossPoint Reader — Year Progress / Reading Heatmap fork
+
+This is a personal fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader) that adds two minimal sleep screens for the Xteink X3:
+
+- **Year Progress** — a grid of 365 dots, one per day; every day that has passed (and today) is grayed out.
+- **Reading Heatmap** — GitHub-style squares for the last 30 days (configurable), shaded by how long you read each day. Reading time is tracked automatically while a book is open.
+
+Both are selected under *Settings → Display → Sleep Screen*, and everything about their look (grid, dot styles, text, fonts — Helvetica Neue Bold and Geist — position, background, orientation) is editable in a settings page that appears right below the mode, with a full-screen preview. See [USER_GUIDE.md § 3.7.9](USER_GUIDE.md#379-year-progress--reading-heatmap).
+
+Notes for building this fork:
+
+- The Geist fonts are bundled (SIL OFL). Helvetica Neue is proprietary, so its converted headers are **not** committed: run `lib/EpdFont/scripts/convert-year-fonts.sh` on a Mac (after `pip install -r lib/EpdFont/scripts/requirements.txt`) to generate them from the system font. Without them the build falls back to Geist Bold for the "Helvetica Neue Bold" option.
+- Build with `pio run -e gh_release`; flash `firmware.bin` from the SD card (*Settings → System → SD Card Firmware Update*) or over USB with esptool.
+
+Everything below is the upstream README.
+
+---
+
 
 [![Fund contributors](https://img.shields.io/badge/%F0%9F%91%91_Fund_contributors-royalty.dev-BB953A?style=for-the-badge&labelColor=1a1a1a)](https://app.royalty.dev/crosspoint-reader/crosspoint-reader)
 

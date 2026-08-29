@@ -12,6 +12,7 @@
 #include "ButtonRemapActivity.h"
 #include "ClearCacheActivity.h"
 #include "CrossPointSettings.h"
+#include "DotsScreenSettingsActivity.h"
 #include "FontDownloadActivity.h"
 #include "KOReaderSettingsActivity.h"
 #include "LanguageSelectActivity.h"
@@ -63,6 +64,17 @@ void SettingsActivity::rebuildSettingsLists() {
         continue;
       }
       displaySettings.push_back(setting);
+      // The dot-grid sleep screens get their editor right under the mode that
+      // selects them, and only while it is selected.
+      if (setting.valuePtr == &CrossPointSettings::sleepScreen) {
+        if (SETTINGS.sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::YEAR_PROGRESS) {
+          displaySettings.push_back(
+              SettingInfo::Action(StrId::STR_YEAR_PROGRESS_SETTINGS, SettingAction::YearProgress));
+        } else if (SETTINGS.sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::READING_HEATMAP) {
+          displaySettings.push_back(
+              SettingInfo::Action(StrId::STR_READING_HEATMAP_SETTINGS, SettingAction::ReadingHeatmap));
+        }
+      }
     } else if (setting.category == StrId::STR_CAT_READER) {
       // Settings merged into "Text Settings"
       // (they stay in the shared list for the web settings API)
@@ -370,6 +382,16 @@ void SettingsActivity::toggleCurrentSetting() {
                                  SETTINGS.saveToFile();
                                  rebuildSettingsLists();
                                });
+        break;
+      case SettingAction::YearProgress:
+        startActivityForResult(
+            std::make_unique<DotsScreenSettingsActivity>(renderer, mappedInput, DotsScreen::Kind::YearProgress),
+            resultHandler);
+        break;
+      case SettingAction::ReadingHeatmap:
+        startActivityForResult(
+            std::make_unique<DotsScreenSettingsActivity>(renderer, mappedInput, DotsScreen::Kind::ReadingHeatmap),
+            resultHandler);
         break;
       case SettingAction::None:
         // Do nothing

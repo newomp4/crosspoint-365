@@ -1,5 +1,6 @@
 #include "HalClock.h"
 
+#include <CivilDate.h>
 #include <Logging.h>
 #include <WiFi.h>
 #include <esp_sntp.h>
@@ -63,6 +64,25 @@ bool HalClock::formatTime(char* buf, size_t bufSize, uint8_t utcOffsetQuarterHou
   } else {
     snprintf(buf, bufSize, "%02d:%02d", hour24, min);
   }
+  return true;
+}
+
+bool HalClock::getLocalDate(uint16_t& year, uint8_t& month, uint8_t& day, uint8_t utcOffsetQuarterHoursBiased) const {
+  if (!_available) return false;
+
+  Rtc::DateTime dt;
+  if (!_sdkRtc.now(dt)) return false;
+  // A never-set (or power-lost) PCF8563 reports 2000-01-01; nothing before the
+  // firmware's own era is a real date.
+  if (dt.year < 2024 || dt.year > 2199 || dt.month < 1 || dt.month > 12 || dt.day < 1 || dt.day > 31) return false;
+
+  if (utcOffsetQuarterHoursBiased > 104) utcOffsetQuarterHoursBiased = 104;
+  const int32_t offsetMinutes = (static_cast<int32_t>(utcOffsetQuarterHoursBiased) - 48) * 15;
+  const int64_t localMinutes = static_cast<int64_t>(CivilDate::daysFromCivil(dt.year, dt.month, dt.day)) * 1440 +
+                               static_cast<int64_t>(dt.hour) * 60 + dt.minute + offsetMinutes;
+  // Floor division: a negative offset just after UTC midnight lands on the previous day.
+  const int64_t localDays = localMinutes >= 0 ? localMinutes / 1440 : -((-localMinutes + 1439) / 1440);
+  CivilDate::civilFromDays(static_cast<int32_t>(localDays), year, month, day);
   return true;
 }
 

@@ -34,6 +34,12 @@ class HalClock {
   // Returns false if RTC is not available.
   bool formatTime(char* buf, size_t bufSize, uint8_t utcOffsetQuarterHoursBiased = 48, bool use12Hour = false) const;
 
+  // Local calendar date: the RTC's UTC time shifted by the same biased
+  // quarter-hour offset formatTime() uses. Returns false if the RTC is absent,
+  // unreadable, or holds an implausible year (never set / backup power lost);
+  // the outputs are untouched in that case.
+  bool getLocalDate(uint16_t& year, uint8_t& month, uint8_t& day, uint8_t utcOffsetQuarterHoursBiased = 48) const;
+
   // Sync the RTC from an NTP server. Requires WiFi to be connected.
   // Blocks for up to ~5s while waiting for SNTP response.
   // Returns true if the RTC was successfully updated.

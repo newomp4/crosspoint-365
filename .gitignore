@@ -5,6 +5,8 @@
 open-x4-sdk
 fs_
 lib/EpdFont/fontsrc
+# Helvetica Neue is proprietary: its converted headers stay local (scripts/ensure_dots_fonts.py writes fallbacks)
+lib/EpdFont/builtinFonts/helveticaneue_*.h
 lib/I18n/I18nKeys.h
 lib/I18n/I18nStrings.h
 lib/I18n/I18nStrings.cpp

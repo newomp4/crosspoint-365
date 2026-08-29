@@ -24,6 +24,8 @@ enum class SettingAction {
   Language,
   DownloadFonts,
   TextSettings,
+  YearProgress,
+  ReadingHeatmap,
 };
 
 struct SettingInfo {

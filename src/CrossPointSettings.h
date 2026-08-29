@@ -22,6 +22,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     BLANK = 5,
     QUICK_RESUME = 6,
     TRANSPARENT_CUSTOM = 7,
+    YEAR_PROGRESS = 8,
+    READING_HEATMAP = 9,
     SLEEP_SCREEN_MODE_COUNT
   };
   enum SLEEP_SCREEN_COVER_MODE { FIT = 0, CROP = 1, SLEEP_SCREEN_COVER_MODE_COUNT };
@@ -196,6 +198,86 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     QUICK_RESUME_SLEEP_SCREEN_COUNT
   };
 
+  // Year Progress / Reading Heatmap sleep screens (DotsScreen). Persisted by
+  // value, so new options go at the END of each enum.
+  enum DOTS_SHAPE { DOTS_SHAPE_CIRCLE = 0, DOTS_SHAPE_SQUARE = 1, DOTS_SHAPE_ROUNDED = 2, DOTS_SHAPE_COUNT };
+  enum DOTS_SIZE {
+    DOTS_SIZE_TINY = 0,
+    DOTS_SIZE_SMALL = 1,
+    DOTS_SIZE_MEDIUM = 2,
+    DOTS_SIZE_LARGE = 3,
+    DOTS_SIZE_EXTRA_LARGE = 4,
+    DOTS_SIZE_HUGE = 5,
+    DOTS_SIZE_COUNT
+  };
+  // Shared Small / Medium / Large scale for margins and text sizes.
+  enum DOTS_SCALE { DOTS_SCALE_SMALL = 0, DOTS_SCALE_MEDIUM = 1, DOTS_SCALE_LARGE = 2, DOTS_SCALE_COUNT };
+  enum DOTS_BACKGROUND { DOTS_BG_WHITE = 0, DOTS_BG_BLACK = 1, DOTS_BACKGROUND_COUNT };
+  enum DOTS_FONT {
+    DOTS_FONT_HELVETICA_NEUE_BOLD = 0,
+    DOTS_FONT_GEIST_BOLD = 1,
+    DOTS_FONT_GEIST_MEDIUM = 2,
+    DOTS_FONT_COUNT
+  };
+  enum DOTS_TEXT_POSITION { DOTS_TEXT_BOTTOM = 0, DOTS_TEXT_TOP = 1, DOTS_TEXT_POSITION_COUNT };
+  enum DOTS_TEXT_ALIGN { DOTS_ALIGN_LEFT = 0, DOTS_ALIGN_CENTER = 1, DOTS_ALIGN_RIGHT = 2, DOTS_TEXT_ALIGN_COUNT };
+
+  enum YEAR_LAYOUT { YEAR_LAYOUT_GRID = 0, YEAR_LAYOUT_MONTHS = 1, YEAR_LAYOUT_COUNT };
+  enum YEAR_DOT_STYLE {
+    YEAR_DOT_SOLID = 0,
+    YEAR_DOT_DARK_GRAY = 1,
+    YEAR_DOT_LIGHT_GRAY = 2,
+    YEAR_DOT_OUTLINE = 3,
+    YEAR_DOT_HIDDEN = 4,
+    YEAR_DOT_STYLE_COUNT
+  };
+  // Today's dot: follow one of the neighbouring classes, or any YEAR_DOT_STYLE
+  // (the tail of this enum mirrors YEAR_DOT_STYLE in order).
+  enum YEAR_TODAY_STYLE {
+    YEAR_TODAY_AS_PAST = 0,
+    YEAR_TODAY_AS_FUTURE = 1,
+    YEAR_TODAY_SOLID = 2,
+    YEAR_TODAY_DARK_GRAY = 3,
+    YEAR_TODAY_LIGHT_GRAY = 4,
+    YEAR_TODAY_OUTLINE = 5,
+    YEAR_TODAY_HIDDEN = 6,
+    YEAR_TODAY_STYLE_COUNT
+  };
+  enum YEAR_TEXT {
+    YEAR_TEXT_NONE = 0,
+    YEAR_TEXT_YEAR = 1,
+    YEAR_TEXT_PERCENT = 2,
+    YEAR_TEXT_DAY_OF_YEAR = 3,
+    YEAR_TEXT_DAYS_LEFT = 4,
+    YEAR_TEXT_FRACTION = 5,
+    YEAR_TEXT_DATE = 6,
+    YEAR_TEXT_FRACTION_PERCENT = 7,
+    YEAR_TEXT_COUNT
+  };
+
+  enum HEAT_LAYOUT { HEAT_LAYOUT_WEEKS = 0, HEAT_LAYOUT_GRID = 1, HEAT_LAYOUT_COUNT };
+  enum WEEK_START { WEEK_START_MONDAY = 0, WEEK_START_SUNDAY = 1, WEEK_START_COUNT };
+  // Shade thresholds: relative to the busiest day, or fixed minute steps.
+  enum HEAT_SCALE {
+    HEAT_SCALE_AUTO = 0,
+    HEAT_SCALE_LOW = 1,
+    HEAT_SCALE_MEDIUM = 2,
+    HEAT_SCALE_HIGH = 3,
+    HEAT_SCALE_COUNT
+  };
+  enum HEAT_EMPTY { HEAT_EMPTY_OUTLINE = 0, HEAT_EMPTY_HIDDEN = 1, HEAT_EMPTY_COUNT };
+  enum HEAT_TEXT {
+    HEAT_TEXT_NONE = 0,
+    HEAT_TEXT_TOTAL_TIME = 1,
+    HEAT_TEXT_TODAY_TIME = 2,
+    HEAT_TEXT_STREAK = 3,
+    HEAT_TEXT_DAYS_READ = 4,
+    HEAT_TEXT_AVERAGE = 5,
+    HEAT_TEXT_DATE = 6,
+    HEAT_TEXT_YEAR = 7,
+    HEAT_TEXT_COUNT
+  };
+
   // Sleep screen settings
   uint8_t sleepScreen = DARK;
   // Night mode: inverted output polarity, applied to every activity per
@@ -321,6 +403,46 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t language = 0;
   // Quick Resume: keep current content visible with moon icon instead of showing a static sleep screen.
   uint8_t quickResumeSleepScreen = QUICK_RESUME_NEVER;
+
+  // Year Progress / Reading Heatmap sleep screens. Edited in
+  // DotsScreenSettingsActivity; persisted by toJson/fromJson through the
+  // DOTS_FIELDS table rather than SettingsList (they have no place in the four
+  // Settings tabs).
+  static constexpr uint8_t DOTS_COLUMNS_MIN = 4;
+  static constexpr uint8_t DOTS_COLUMNS_MAX = 40;
+  static constexpr uint8_t HEAT_DAYS_MIN = 7;
+  static constexpr uint8_t HEAT_DAYS_MAX = 250;
+  // Look shared by both screens
+  uint8_t dotsMargin = DOTS_SCALE_MEDIUM;
+  uint8_t dotsBackground = DOTS_BG_WHITE;
+  uint8_t dotsTitleFont = DOTS_FONT_HELVETICA_NEUE_BOLD;
+  uint8_t dotsTitleSize = DOTS_SCALE_LARGE;
+  uint8_t dotsSubtitleFont = DOTS_FONT_GEIST_MEDIUM;
+  uint8_t dotsSubtitleSize = DOTS_SCALE_SMALL;
+  uint8_t dotsTextPosition = DOTS_TEXT_BOTTOM;
+  uint8_t dotsTextAlign = DOTS_ALIGN_CENTER;
+  uint8_t dotsOrientation = PORTRAIT;  // ORIENTATION value
+  // Year Progress
+  uint8_t yearColumns = 15;  // 15 x 25 fills a portrait screen
+  uint8_t yearLayout = YEAR_LAYOUT_GRID;
+  uint8_t yearDotShape = DOTS_SHAPE_CIRCLE;
+  uint8_t yearDotSize = DOTS_SIZE_MEDIUM;
+  uint8_t yearPastStyle = YEAR_DOT_LIGHT_GRAY;
+  uint8_t yearTodayStyle = YEAR_TODAY_AS_PAST;
+  uint8_t yearFutureStyle = YEAR_DOT_SOLID;
+  uint8_t yearTitle = YEAR_TEXT_YEAR;
+  uint8_t yearSubtitle = YEAR_TEXT_PERCENT;
+  // Reading Heatmap
+  uint8_t heatDays = 30;
+  uint8_t heatLayout = HEAT_LAYOUT_WEEKS;
+  uint8_t heatColumns = 6;
+  uint8_t heatWeekStart = WEEK_START_MONDAY;
+  uint8_t heatScale = HEAT_SCALE_AUTO;
+  uint8_t heatEmptyStyle = HEAT_EMPTY_OUTLINE;
+  uint8_t heatShape = DOTS_SHAPE_ROUNDED;
+  uint8_t heatDotSize = DOTS_SIZE_HUGE;
+  uint8_t heatTitle = HEAT_TEXT_TOTAL_TIME;
+  uint8_t heatSubtitle = HEAT_TEXT_STREAK;
 
   static constexpr uint8_t MIN_SLEEP_TIMEOUT_MINUTES = 1;
   static constexpr uint8_t SLEEP_TIMEOUT_NEVER_MINUTES = 31;
