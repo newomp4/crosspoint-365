@@ -131,16 +131,6 @@ GfxRenderer::Orientation orientationFor(const uint8_t setting) {
   }
 }
 
-// "12h 5m" / "45m"
-void formatDuration(const uint32_t seconds, char* buf, const size_t bufSize) {
-  const unsigned minutes = seconds / 60;
-  if (minutes >= 60) {
-    snprintf(buf, bufSize, tr(STR_HM_FMT_HOURS), minutes / 60, minutes % 60);
-  } else {
-    snprintf(buf, bufSize, tr(STR_HM_FMT_MINUTES), minutes);
-  }
-}
-
 void formatYearText(const uint8_t kind, const CalendarDate& date, char* buf, const size_t bufSize) {
   buf[0] = '\0';
   const unsigned doy = date.dayOfYear();
@@ -182,10 +172,10 @@ void formatHeatText(const uint8_t kind, const Context& ctx, char* buf, const siz
   char duration[16];
   switch (kind) {
     case CrossPointSettings::HEAT_TEXT_TOTAL_TIME:
-      formatDuration(ctx.summary.totalSeconds, buf, bufSize);
+      ReadingStats::formatDuration(ctx.summary.totalSeconds, buf, bufSize);
       break;
     case CrossPointSettings::HEAT_TEXT_TODAY_TIME:
-      formatDuration(READING_STATS.secondsOn(ctx.lastDay), duration, sizeof(duration));
+      ReadingStats::formatDuration(READING_STATS.secondsOn(ctx.lastDay), duration, sizeof(duration));
       snprintf(buf, bufSize, tr(STR_HM_FMT_TODAY), duration);
       break;
     case CrossPointSettings::HEAT_TEXT_STREAK:
@@ -202,7 +192,7 @@ void formatHeatText(const uint8_t kind, const Context& ctx, char* buf, const siz
                static_cast<unsigned>(ctx.days));
       break;
     case CrossPointSettings::HEAT_TEXT_AVERAGE:
-      formatDuration(ctx.days > 0 ? ctx.summary.totalSeconds / ctx.days : 0, duration, sizeof(duration));
+      ReadingStats::formatDuration(ctx.days > 0 ? ctx.summary.totalSeconds / ctx.days : 0, duration, sizeof(duration));
       snprintf(buf, bufSize, tr(STR_HM_FMT_AVERAGE), duration);
       break;
     case CrossPointSettings::HEAT_TEXT_DATE:
@@ -587,7 +577,7 @@ void present(GfxRenderer& renderer, const Context& ctx, const DrawFn draw, const
 CalendarDate CalendarDate::today() {
   CalendarDate date;
   date.valid = halClock.getLocalDate(date.year, date.month, date.day, SETTINGS.clockUtcOffsetQ);
-  if (!date.valid) LOG_INF("DOTS", "No usable RTC date");
+  if (!date.valid) LOG_DBG("DOTS", "No usable RTC date");
   return date;
 }
 

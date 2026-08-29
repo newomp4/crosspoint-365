@@ -4,6 +4,7 @@
 #include <Epub.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
+#include <HalClock.h>
 #include <HalDisplay.h>
 #include <HalStorage.h>
 #include <I18n.h>
@@ -19,6 +20,10 @@
 #include "MappedInputManager.h"
 #include "OpdsServerStore.h"
 #include "RecentBooksStore.h"
+#include "WeatherStore.h"
+#include "WifiCredentialStore.h"
+#include "activities/settings/WeatherRefreshActivity.h"
+#include "components/HomeWidgets.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 
@@ -121,8 +126,47 @@ void HomeActivity::onEnter() {
   const auto base = static_cast<int>(recentBooks.size());
   selectorIndex = initialMenuItem == HomeMenuItem::NONE ? 0 : base + menuItemToIndex(initialMenuItem, hasOpdsServers);
 
+  chooseWidgetBand();
+
   // Trigger first update
   requestUpdate();
+
+  maybeAutoRefreshWeather();
+}
+
+void HomeActivity::chooseWidgetBand() {
+  widgetBand = 0;
+  widgetBandCompact = false;
+  if (HomeWidgets::slotCount() == 0) return;
+  const auto& metrics = UITheme::getInstance().getMetrics();
+  const int menuRows =
+      getMenuItemCount() - (metrics.homeContinueReadingInMenu ? 0 : static_cast<int>(recentBooks.size()));
+  const int menuHeight = menuRows * (GUI.getMenuRowHeight(renderer) + metrics.menuSpacing) - metrics.menuSpacing;
+  const int menuBottomWithoutBand =
+      metrics.homeTopPadding + metrics.homeCoverTileHeight + metrics.homeMenuTopOffset + menuHeight;
+  const int room = renderer.getScreenHeight() - metrics.buttonHintsHeight - 4 - menuBottomWithoutBand;
+  const int full = HomeWidgets::bandHeight(renderer, false);
+  const int compact = HomeWidgets::bandHeight(renderer, true);
+  if (room >= full) {
+    widgetBand = full;
+  } else if (room >= compact) {
+    widgetBand = compact;
+    widgetBandCompact = true;
+  }
+}
+
+// Auto-refresh on wake: only when the user opted in, a weather widget is on
+// screen, the data is old, and a saved network exists. The refresh activity
+// restarts into Home when it is done, and the store's attempt throttle stops
+// a failing network from costing every wake.
+void HomeActivity::maybeAutoRefreshWeather() {
+  if (weatherAutoTried) return;
+  weatherAutoTried = true;
+  if (SETTINGS.weatherAutoRefresh != CrossPointSettings::WEATHER_REFRESH_ON_WAKE) return;
+  if (!HomeWidgets::showsWeather() || WIFI_STORE.getCredentialCount() == 0) return;
+  WEATHER.ensureLoaded();
+  if (!WEATHER.shouldAutoRefresh(halClock.getEpochSeconds())) return;
+  startActivityForResult(std::make_unique<WeatherRefreshActivity>(renderer, mappedInput, /*silent=*/true), nullptr);
 }
 
 void HomeActivity::onExit() {
@@ -171,6 +215,16 @@ void HomeActivity::freeCoverBuffer() {
 void HomeActivity::loop() {
   const int menuCount = getMenuItemCount();
   const auto& metrics = UITheme::getInstance().getMetrics();
+  const int tileTop = metrics.homeTopPadding + widgetBand;
+
+  // A clock widget keeps time: repaint when the minute turns over.
+  if (widgetBand > 0 && lastClockMinute != 255) {
+    uint8_t hour, minute;
+    if (halClock.getTime(hour, minute) && minute != lastClockMinute) {
+      lastClockMinute = minute;
+      requestUpdate();
+    }
+  }
 
   auto activateSelection = [this] {
     if (selectorIndex < recentBooks.size()) {
@@ -234,8 +288,7 @@ void HomeActivity::loop() {
   const int coverColumnWidth = (renderer.getScreenWidth() - 2 * metrics.contentSidePadding) / coverColumnCount;
   int touchedBook = -1;
   const auto coverTouch = mappedInput.colTouch(touchedBook, metrics.contentSidePadding, coverColumnWidth, recentCount,
-                                               metrics.homeTopPadding,
-                                               metrics.homeTopPadding + metrics.homeCoverTileHeight, coverColumnWidth);
+                                               tileTop, tileTop + metrics.homeCoverTileHeight, coverColumnWidth);
   if (coverTouch != MappedInputManager::RowTouch::None) {
     if (coverTouch == MappedInputManager::RowTouch::Down) {
       if (selectorIndex != touchedBook) {
@@ -249,7 +302,7 @@ void HomeActivity::loop() {
     return;
   }
 
-  const int menuTop = metrics.homeTopPadding + metrics.homeCoverTileHeight + metrics.homeMenuTopOffset;
+  const int menuTop = tileTop + metrics.homeCoverTileHeight + metrics.homeMenuTopOffset;
   const int renderedMenuSelection =
       metrics.homeContinueReadingInMenu ? selectorIndex : selectorIndex - recentBooks.size();
   const int renderedMenuCount =
@@ -294,16 +347,24 @@ void HomeActivity::render(RenderLock&&) {
   GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.homeTopPadding - metrics.topPadding},
                  metrics.homeContinueReadingInMenu && !recentBooks.empty() ? recentBooks[0].title.c_str() : nullptr);
 
+  chooseWidgetBand();
+  const int tileTop = metrics.homeTopPadding + widgetBand;
+  if (widgetBand > 0) {
+    HomeWidgets::draw(renderer, Rect{0, metrics.homeTopPadding, pageWidth, widgetBand}, widgetBandCompact);
+    uint8_t hour, minute;
+    lastClockMinute = (HomeWidgets::showsClock() && halClock.getTime(hour, minute)) ? minute : 255;
+  }
+
   // Record the tile rect so storeCoverBuffer (called from the theme) knows
   // which sub-region of the framebuffer to snapshot. ~16 KB in Portrait
   // instead of the 48 KB full framebuffer the previous bind captured.
   coverRectX = 0;
-  coverRectY = metrics.homeTopPadding;
+  coverRectY = tileTop;
   coverRectW = pageWidth;
   coverRectH = metrics.homeCoverTileHeight;
 
-  GUI.drawRecentBookCover(renderer, Rect{0, metrics.homeTopPadding, pageWidth, metrics.homeCoverTileHeight},
-                          recentBooks, selectorIndex, coverRendered, coverBufferStored, bufferRestored,
+  GUI.drawRecentBookCover(renderer, Rect{0, tileTop, pageWidth, metrics.homeCoverTileHeight}, recentBooks,
+                          selectorIndex, coverRendered, coverBufferStored, bufferRestored,
                           std::bind(&HomeActivity::storeCoverBuffer, this));
 
   // Build menu items dynamically
@@ -324,9 +385,9 @@ void HomeActivity::render(RenderLock&&) {
 
   GUI.drawButtonMenu(
       renderer,
-      Rect{0, metrics.homeTopPadding + metrics.homeCoverTileHeight + metrics.homeMenuTopOffset, pageWidth,
-           pageHeight - (metrics.headerHeight + metrics.homeTopPadding + metrics.verticalSpacing +
-                         metrics.homeMenuTopOffset + metrics.buttonHintsHeight)},
+      Rect{0, tileTop + metrics.homeCoverTileHeight + metrics.homeMenuTopOffset, pageWidth,
+           pageHeight - (metrics.headerHeight + tileTop + metrics.verticalSpacing + metrics.homeMenuTopOffset +
+                         metrics.buttonHintsHeight)},
       static_cast<int>(menuItems.size()),
       metrics.homeContinueReadingInMenu ? selectorIndex : selectorIndex - recentBooks.size(),
       [&menuItems](int index) { return std::string(menuItems[index]); },

@@ -11,6 +11,7 @@
 
 #include "CrossPointSettings.h"
 #include "MappedInputManager.h"
+#include "WeatherStore.h"
 #include "WifiCredentialStore.h"
 #include "activities/util/KeyboardEntryActivity.h"
 #include "components/UITheme.h"
@@ -526,6 +527,9 @@ void WifiSelectionActivity::checkConnectionStatus() {
         SETTINGS.saveToFile();
       }
     }
+
+    // The radio is up anyway: refresh the home widget's weather if it has gone stale.
+    WEATHER.refreshIfDue(halClock.getEpochSeconds());
 
     // Save this as the last connected network - SD card operations need lock as
     // we use SPI for both

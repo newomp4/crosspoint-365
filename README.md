@@ -4,8 +4,9 @@ This is a personal fork of [CrossPoint Reader](https://github.com/crosspoint-rea
 
 - **Year Progress** — a grid of 365 dots, one per day; every day that has passed (and today) is grayed out.
 - **Reading Heatmap** — GitHub-style squares for the last 30 days (configurable), shaded by how long you read each day. Reading time is tracked automatically while a book is open.
+- **Home Widgets** — up to four minimal complications on the home screen: clock, date, reading time (today / this week / all time / current book), streak, daily average, year progress, weather (Open-Meteo, no key) and battery, with filled [Phosphor](https://phosphoricons.com) icons.
 
-Both are selected under *Settings → Display → Sleep Screen*, and everything about their look (grid, dot styles, text, fonts — Helvetica Neue Bold and Geist — position, background, orientation) is editable in a settings page that appears right below the mode, with a full-screen preview. See [USER_GUIDE.md § 3.7.9](USER_GUIDE.md#379-year-progress--reading-heatmap).
+The sleep screens are selected under *Settings → Display → Sleep Screen*, and everything about their look (grid, dot styles, text, fonts — Helvetica Neue Bold and Geist — position, background, orientation) is editable in a settings page that appears right below the mode, with a full-screen preview. See [USER_GUIDE.md § 3.7.9](USER_GUIDE.md#379-year-progress--reading-heatmap) and [§ 3.7.10](USER_GUIDE.md#3710-home-widgets).
 
 Notes for building this fork:
 

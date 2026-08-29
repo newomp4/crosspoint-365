@@ -26,6 +26,7 @@ enum class SettingAction {
   TextSettings,
   YearProgress,
   ReadingHeatmap,
+  HomeWidgets,
 };
 
 struct SettingInfo {

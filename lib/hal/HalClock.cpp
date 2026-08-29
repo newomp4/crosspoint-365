@@ -86,6 +86,15 @@ bool HalClock::getLocalDate(uint16_t& year, uint8_t& month, uint8_t& day, uint8_
   return true;
 }
 
+uint32_t HalClock::getEpochSeconds() const {
+  if (!_available) return 0;
+  Rtc::DateTime dt;
+  if (!_sdkRtc.now(dt) || dt.year < 2024 || dt.month < 1 || dt.month > 12 || dt.day < 1 || dt.day > 31) return 0;
+  const int32_t days = CivilDate::daysFromCivil(dt.year, dt.month, dt.day);
+  return static_cast<uint32_t>(days) * 86400u + static_cast<uint32_t>(dt.hour) * 3600u +
+         static_cast<uint32_t>(dt.minute) * 60u + dt.second;
+}
+
 bool HalClock::syncFromNTP() {
   if (!_available) return false;
 

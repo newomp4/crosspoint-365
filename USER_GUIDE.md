@@ -577,6 +577,36 @@ Select either mode under **Settings → Display → Sleep Screen**. A **Year Pro
 
 The text styling (fonts, sizes, position, background, margins, orientation) is shared by both screens, so switching between them keeps the same look.
 
+#### 3.7.10 Home Widgets
+
+A row of up to four small "complications" on the home screen, between the header and the current book: a filled icon, a value, and a caption. Configure them under **Settings → Display → Home Widgets**; each of the four slots can show one of:
+
+| Widget | Shows |
+| ------ | ----- |
+| **Clock** | The time (24 h or 12 h), with today's date as the caption. Repaints when the minute changes. |
+| **Date** | "Aug 29" with the weekday. |
+| **Read Today** / **Read This Week** | Reading time today / over the last 7 days. |
+| **Total Reading Time** | All-time reading time. |
+| **Current Book Time** | Time spent in the book that is currently open, with its title. |
+| **Reading Streak** | Consecutive days with reading. |
+| **Daily Average** | Average reading time per day over the last 30 days. |
+| **Year Progress** | Percentage of the year gone, like the sleep screen. |
+| **Weather** | Current temperature with a condition icon; caption shows the condition and today's high/low. |
+| **Battery** | Battery percentage. |
+
+Reading times come from the same tracker as the [Reading Heatmap](#379-year-progress--reading-heatmap): time between page turns counts, up to 5 minutes per gap, from the moment this firmware is installed. The clock, date and streak widgets need the clock synced once ("Sync clock now" under Customise Status Bar or the sleep screen settings).
+
+The row takes only the space the home screen can spare: if the menu would run into the button hints, it drops to a compact icon-and-value layout, and if even that does not fit (many menu entries on a small theme) it is hidden.
+
+**Weather** needs a location and, occasionally, Wi-Fi. In **Home Widgets**:
+
+- **Weather Location** — type a city name ("Berlin", "Austin, TX"). It is resolved to coordinates on the first refresh, no key or account needed (data by [Open-Meteo](https://open-meteo.com)).
+- **Refresh weather now** — connects to Wi-Fi (using your saved network, or asking for one), fetches, and disconnects.
+- **Weather Auto-Refresh** — *Only while on Wi-Fi* (default) also updates whenever the device is on Wi-Fi anyway (file transfer, OPDS, clock sync) and the data is older than an hour. *On wake if older than 3 h* additionally brings Wi-Fi up when the device wakes with stale data, which adds a few seconds to that wake and costs a little battery; a failed attempt is not retried for 3 hours.
+- **Temperature Unit** — Celsius or Fahrenheit.
+
+The icons are the filled set from [Phosphor Icons](https://phosphoricons.com) (MIT). To use a different set, drop same-named SVGs into `src/components/icons/custom/` and run `scripts/gen_widget_icons.py`.
+
 ---
 
 ### 3.8 Custom Fonts (SD Card)

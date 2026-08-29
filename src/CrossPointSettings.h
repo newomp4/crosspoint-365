@@ -266,6 +266,28 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     HEAT_SCALE_COUNT
   };
   enum HEAT_EMPTY { HEAT_EMPTY_OUTLINE = 0, HEAT_EMPTY_HIDDEN = 1, HEAT_EMPTY_COUNT };
+  // Home-screen widgets (HomeWidgets), one per slot. Persisted by value: new
+  // widgets go at the END.
+  enum HOME_WIDGET {
+    HW_NONE = 0,
+    HW_CLOCK = 1,
+    HW_DATE = 2,
+    HW_TODAY = 3,
+    HW_WEEK = 4,
+    HW_TOTAL = 5,
+    HW_BOOK = 6,
+    HW_STREAK = 7,
+    HW_AVERAGE = 8,
+    HW_YEAR = 9,
+    HW_WEATHER = 10,
+    HW_BATTERY = 11,
+    HOME_WIDGET_COUNT
+  };
+  enum WEATHER_UNIT { WEATHER_CELSIUS = 0, WEATHER_FAHRENHEIT = 1, WEATHER_UNIT_COUNT };
+  // Manual: only "Refresh weather now" and opportunistic updates while Wi-Fi is
+  // up anyway. On wake: also bring Wi-Fi up at boot when the data is old.
+  enum WEATHER_AUTO_REFRESH { WEATHER_REFRESH_MANUAL = 0, WEATHER_REFRESH_ON_WAKE = 1, WEATHER_AUTO_REFRESH_COUNT };
+
   enum HEAT_TEXT {
     HEAT_TEXT_NONE = 0,
     HEAT_TEXT_TOTAL_TIME = 1,
@@ -443,6 +465,14 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t heatDotSize = DOTS_SIZE_HUGE;
   uint8_t heatTitle = HEAT_TEXT_TOTAL_TIME;
   uint8_t heatSubtitle = HEAT_TEXT_STREAK;
+  // Home-screen widgets
+  static constexpr uint8_t HOME_WIDGET_SLOTS = 4;
+  uint8_t homeWidget1 = HW_CLOCK;
+  uint8_t homeWidget2 = HW_TODAY;
+  uint8_t homeWidget3 = HW_STREAK;
+  uint8_t homeWidget4 = HW_NONE;
+  uint8_t weatherUnit = WEATHER_CELSIUS;
+  uint8_t weatherAutoRefresh = WEATHER_REFRESH_MANUAL;
 
   static constexpr uint8_t MIN_SLEEP_TIMEOUT_MINUTES = 1;
   static constexpr uint8_t SLEEP_TIMEOUT_NEVER_MINUTES = 31;

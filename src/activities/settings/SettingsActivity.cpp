@@ -14,6 +14,7 @@
 #include "CrossPointSettings.h"
 #include "DotsScreenSettingsActivity.h"
 #include "FontDownloadActivity.h"
+#include "HomeWidgetsSettingsActivity.h"
 #include "KOReaderSettingsActivity.h"
 #include "LanguageSelectActivity.h"
 #include "MappedInputManager.h"
@@ -92,6 +93,8 @@ void SettingsActivity::rebuildSettingsLists() {
   }
 
   // Append device-only ACTION items
+  displaySettings.insert(displaySettings.begin(),
+                         SettingInfo::Action(StrId::STR_HOME_WIDGETS, SettingAction::HomeWidgets));
   if (!BoardConfig::hasTouch()) {
     controlsSettings.insert(controlsSettings.begin(),
                             SettingInfo::Action(StrId::STR_REMAP_FRONT_BUTTONS, SettingAction::RemapFrontButtons));
@@ -392,6 +395,9 @@ void SettingsActivity::toggleCurrentSetting() {
         startActivityForResult(
             std::make_unique<DotsScreenSettingsActivity>(renderer, mappedInput, DotsScreen::Kind::ReadingHeatmap),
             resultHandler);
+        break;
+      case SettingAction::HomeWidgets:
+        startActivityForResult(std::make_unique<HomeWidgetsSettingsActivity>(renderer, mappedInput), resultHandler);
         break;
       case SettingAction::None:
         // Do nothing

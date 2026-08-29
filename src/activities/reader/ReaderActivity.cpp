@@ -67,7 +67,7 @@ void ReaderActivity::onEnter() {
   APP_STATE.openEpubPath = bookPath;
   APP_STATE.saveToFile();
   RECENT_BOOKS.addBook(bookPath, getBookTitle(), getBookAuthor(), getBookThumbBmpPath());
-  READING_STATS.beginSession(millis());
+  READING_STATS.beginSession(millis(), bookPath.c_str());
   requestUpdate();
 }
 

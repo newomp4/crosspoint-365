@@ -40,6 +40,10 @@ class HalClock {
   // the outputs are untouched in that case.
   bool getLocalDate(uint16_t& year, uint8_t& month, uint8_t& day, uint8_t utcOffsetQuarterHoursBiased = 48) const;
 
+  // Seconds since 1970-01-01 UTC, or 0 when the RTC is absent or unset. For
+  // age comparisons (caches, throttles), not for display.
+  uint32_t getEpochSeconds() const;
+
   // Sync the RTC from an NTP server. Requires WiFi to be connected.
   // Blocks for up to ~5s while waiting for SNTP response.
   // Returns true if the RTC was successfully updated.

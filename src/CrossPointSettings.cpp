@@ -62,7 +62,7 @@ uint8_t CrossPointSettings::sleepTimeoutEnumToMinutes(const uint8_t legacyValue)
 }
 
 namespace {
-// Year Progress / Reading Heatmap fields. Persisted here rather than through
+// Fork fields (dot-grid sleep screens, home widgets). Persisted here rather than through
 // SettingsList (see CrossPointSettings.h); `max` is inclusive and doubles as
 // the enum upper bound.
 struct DotsField {
@@ -101,6 +101,12 @@ constexpr DotsField DOTS_FIELDS[] = {
     {"heatDotSize", &S::heatDotSize, 0, S::DOTS_SIZE_COUNT - 1},
     {"heatTitle", &S::heatTitle, 0, S::HEAT_TEXT_COUNT - 1},
     {"heatSubtitle", &S::heatSubtitle, 0, S::HEAT_TEXT_COUNT - 1},
+    {"homeWidget1", &S::homeWidget1, 0, S::HOME_WIDGET_COUNT - 1},
+    {"homeWidget2", &S::homeWidget2, 0, S::HOME_WIDGET_COUNT - 1},
+    {"homeWidget3", &S::homeWidget3, 0, S::HOME_WIDGET_COUNT - 1},
+    {"homeWidget4", &S::homeWidget4, 0, S::HOME_WIDGET_COUNT - 1},
+    {"weatherUnit", &S::weatherUnit, 0, S::WEATHER_UNIT_COUNT - 1},
+    {"weatherAutoRefresh", &S::weatherAutoRefresh, 0, S::WEATHER_AUTO_REFRESH_COUNT - 1},
 };
 }  // namespace
 
@@ -144,7 +150,7 @@ void CrossPointSettings::toJson(JsonDocument& doc) const {
     doc["dictionaryName"] = dictionaryName;
   }
 
-  // Year Progress / Reading Heatmap sleep screens — see DOTS_FIELDS.
+  // Fork fields — see DOTS_FIELDS.
   for (const auto& f : DOTS_FIELDS) {
     doc[f.key] = s.*(f.field);
   }
@@ -265,7 +271,7 @@ bool CrossPointSettings::fromJson(JsonVariantConst doc) {
   // Dictionary folder name — uses dynamic getter/setter in SettingsList, load manually
   copyToField(dictionaryName, doc["dictionaryName"] | "", sizeof(dictionaryName));
 
-  // Year Progress / Reading Heatmap sleep screens — out-of-range values fall
+  // Fork fields — out-of-range values fall
   // back to the struct-initializer default.
   for (const auto& f : DOTS_FIELDS) {
     const uint8_t fieldDefault = s.*(f.field);

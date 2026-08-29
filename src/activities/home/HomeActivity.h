@@ -16,6 +16,13 @@ class HomeActivity final : public Activity {
   bool recentsLoaded = false;
   bool firstRenderDone = false;
   bool hasOpdsServers = false;
+  // Widget band above the cover tile: height chosen in render() so the menu
+  // still clears the button hints (full, compact, or none), and mirrored by
+  // loop()'s touch grid.
+  int widgetBand = 0;
+  bool widgetBandCompact = false;
+  uint8_t lastClockMinute = 255;  // minute painted by the last render; 255 = none
+  bool weatherAutoTried = false;
   bool coverRendered = false;      // Track if cover has been rendered once
   bool coverBufferStored = false;  // Track if cover buffer is stored
   uint8_t* coverBuffer = nullptr;  // HomeActivity's own buffer for cover image
@@ -69,6 +76,8 @@ class HomeActivity final : public Activity {
   void freeCoverBuffer();     // Free the stored cover buffer
   void loadRecentBooks(int maxBooks);
   void loadRecentCovers(int coverHeight);
+  void chooseWidgetBand();
+  void maybeAutoRefreshWeather();
 
  public:
   explicit HomeActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
