@@ -84,6 +84,9 @@ class WifiSelectionActivity final : public Activity, private UiAppHost {
 
   // Whether to attempt auto-connect on entry
   const bool allowAutoConnect;
+  // Background use (e.g. a weather refresh on wake): when no saved network
+  // can be joined, finish cancelled instead of presenting the network list.
+  const bool quietAutoConnect;
 
   // Whether we are attempting to auto-connect or auto-scan saved networks.
   bool autoConnecting = false;
@@ -134,6 +137,8 @@ class WifiSelectionActivity final : public Activity, private UiAppHost {
   bool tryAutoConnectCredential(const WifiCredential& cred);
   bool tryNextSavedNetworkFromScan();
   void handleAutoConnectFailure();
+  // Quiet mode's exit when auto-connect is exhausted; false when interactive.
+  bool giveUpQuietly();
   void showNetworkListFromAutoConnect();
   bool hasAttemptedAutoSsid(const std::string& ssid) const;
   std::string getSignalStrengthIndicator(int32_t rssi) const;
@@ -141,7 +146,8 @@ class WifiSelectionActivity final : public Activity, private UiAppHost {
   void onComplete(bool connected);
 
  public:
-  explicit WifiSelectionActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, bool autoConnect = true);
+  explicit WifiSelectionActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, bool autoConnect = true,
+                                 bool quietAutoConnect = false);
   void onEnter() override;
   void onExit() override;
   void loop() override;

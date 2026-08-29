@@ -52,13 +52,18 @@ void WeatherRefreshActivity::onExit() {
 }
 
 void WeatherRefreshActivity::launchWifiSelection() {
-  startActivityForResult(std::make_unique<WifiSelectionActivity>(renderer, mappedInput),
+  // Silent mode must not strand the user in the network list on wake: quiet
+  // auto-connect finishes cancelled when no saved network can be joined.
+  startActivityForResult(std::make_unique<WifiSelectionActivity>(renderer, mappedInput, /*autoConnect=*/true,
+                                                                 /*quietAutoConnect=*/silent),
                          [this](const ActivityResult& result) { onWifiSelectionComplete(!result.isCancelled); });
 }
 
 void WeatherRefreshActivity::onWifiSelectionComplete(const bool connected) {
   if (!connected) {
-    LOG_INF("WX", "Wi-Fi selection cancelled before weather refresh");
+    LOG_INF("WX", "Wi-Fi not available for weather refresh");
+    // Counts as an attempt so a dead network doesn't cost every wake.
+    if (silent) WEATHER.noteAttempt(halClock.getEpochSeconds());
     finish();
     return;
   }
@@ -67,7 +72,10 @@ void WeatherRefreshActivity::onWifiSelectionComplete(const bool connected) {
 }
 
 void WeatherRefreshActivity::runSync() {
-  const auto result = WEATHER.refresh(halClock.getEpochSeconds());
+  const uint32_t now = halClock.getEpochSeconds();
+  // The Wi-Fi flow refreshes opportunistically on connect; don't fetch twice.
+  const bool justRefreshed = WEATHER.hasData() && !WEATHER.isStale(now, 120);
+  const auto result = justRefreshed ? WeatherStore::RefreshResult::Ok : WEATHER.refresh(now);
   switch (result) {
     case WeatherStore::RefreshResult::Ok: {
       char temp[12];

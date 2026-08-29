@@ -44,6 +44,8 @@ class WeatherStore : public PersistableStore<WeatherStore> {
 
   // Blocking fetch; Wi-Fi must be connected. Marks the attempt time on any outcome.
   RefreshResult refresh(uint32_t nowEpoch);
+  // Record an attempt that never reached the network (no Wi-Fi), for the throttle.
+  void noteAttempt(uint32_t nowEpoch);
   // refresh() only when a location is set and the data is past OPPORTUNISTIC_MAX_AGE_S.
   void refreshIfDue(uint32_t nowEpoch);
 

@@ -38,6 +38,16 @@ void appendUrlEncoded(std::string& url, const char* text) {
 }
 
 int16_t toTenths(const float celsius) { return static_cast<int16_t>(lroundf(celsius * 10.0f)); }
+
+// Verified https first; Open-Meteo also serves plain http, which is the
+// fallback when the TLS handshake fails (typically heap pressure).
+bool fetch(const std::string& httpsUrl, std::string& body) {
+  if (HttpDownloader::fetchUrl(httpsUrl, body)) return true;
+  body.clear();
+  const std::string httpUrl = "http://" + httpsUrl.substr(sizeof("https://") - 1);
+  LOG_INF("WX", "https fetch failed, retrying over http");
+  return HttpDownloader::fetchUrl(httpUrl, body);
+}
 }  // namespace
 
 void WeatherStore::toJson(JsonDocument& doc) const {
@@ -102,6 +112,12 @@ bool WeatherStore::shouldAutoRefresh(const uint32_t nowEpoch) const {
   return lastAttemptAt == 0 || nowEpoch < lastAttemptAt || nowEpoch - lastAttemptAt > AUTO_MAX_AGE_S;
 }
 
+void WeatherStore::noteAttempt(const uint32_t nowEpoch) {
+  ensureLoaded();
+  lastAttemptAt = nowEpoch;
+  saveToFile();
+}
+
 void WeatherStore::refreshIfDue(const uint32_t nowEpoch) {
   ensureLoaded();
   if (!hasLocation() || !isStale(nowEpoch, OPPORTUNISTIC_MAX_AGE_S)) return;
@@ -112,7 +128,7 @@ bool WeatherStore::geocode() {
   std::string url = GEOCODE_URL;
   appendUrlEncoded(url, query);
   std::string body;
-  if (!HttpDownloader::fetchUrl(url, body)) {
+  if (!fetch(url, body)) {
     LOG_ERR("WX", "Geocoding request failed");
     return false;
   }
@@ -147,7 +163,7 @@ bool WeatherStore::fetchForecast() {
   std::string url = FORECAST_URL;
   url += coords;
   std::string body;
-  if (!HttpDownloader::fetchUrl(url, body)) {
+  if (!fetch(url, body)) {
     LOG_ERR("WX", "Forecast request failed");
     return false;
   }

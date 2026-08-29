@@ -19,6 +19,7 @@
 #include "CrossPointState.h"
 #include "MappedInputManager.h"
 #include "OpdsServerStore.h"
+#include "ReadingStats.h"
 #include "RecentBooksStore.h"
 #include "WeatherStore.h"
 #include "WifiCredentialStore.h"
@@ -127,11 +128,14 @@ void HomeActivity::onEnter() {
   selectorIndex = initialMenuItem == HomeMenuItem::NONE ? 0 : base + menuItemToIndex(initialMenuItem, hasOpdsServers);
 
   chooseWidgetBand();
+  // The widgets read these stores on the render task; load them here first so
+  // the initial SD reads don't race the first paint.
+  if (widgetBand > 0) READING_STATS.ensureLoaded();
+  if (widgetBand > 0 && HomeWidgets::showsWeather()) WEATHER.ensureLoaded();
+  maybeAutoRefreshWeather();
 
   // Trigger first update
   requestUpdate();
-
-  maybeAutoRefreshWeather();
 }
 
 void HomeActivity::chooseWidgetBand() {

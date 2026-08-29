@@ -43,6 +43,9 @@ class ReadingStats {
   // FNV-1a over the path: stable across builds, unlike std::hash.
   static uint32_t bookHash(const char* path);
 
+  void ensureLoaded() {
+    if (!loaded) load();
+  }
   bool load();
   bool save();
 

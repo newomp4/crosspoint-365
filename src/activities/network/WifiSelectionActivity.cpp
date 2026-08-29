@@ -26,8 +26,19 @@ constexpr fui::ActionId ACTION_PROMPT = 3;
 }  // namespace
 
 WifiSelectionActivity::WifiSelectionActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
-                                             const bool autoConnect)
-    : Activity("WifiSelection", renderer, mappedInput), UiAppHost(renderer), allowAutoConnect(autoConnect) {}
+                                             const bool autoConnect, const bool quietAutoConnect)
+    : Activity("WifiSelection", renderer, mappedInput),
+      UiAppHost(renderer),
+      allowAutoConnect(autoConnect),
+      quietAutoConnect(autoConnect && quietAutoConnect) {}
+
+bool WifiSelectionActivity::giveUpQuietly() {
+  if (!quietAutoConnect) return false;
+  LOG_INF("WIFI", "No saved network reachable; quiet auto-connect gives up");
+  WiFi.disconnect();
+  onComplete(false);
+  return true;
+}
 
 void WifiSelectionActivity::onRowEvent(const fui::ActionEvent& event, void* user) {
   auto* self = static_cast<WifiSelectionActivity*>(user);
@@ -157,6 +168,8 @@ void WifiSelectionActivity::onEnter() {
     return;
   }
 
+  if (giveUpQuietly()) return;
+
   // Fallback to scanning
   startWifiScan();
 }
@@ -207,6 +220,7 @@ void WifiSelectionActivity::processWifiScanResults() {
   }
 
   if (scanResult == WIFI_SCAN_FAILED) {
+    if (giveUpQuietly()) return;
     networks.clear();
     realNetworkCount = 0;
     appendHiddenNetworkEntry();
@@ -264,6 +278,7 @@ void WifiSelectionActivity::processWifiScanResults() {
   if (autoConnecting && !manualNetworkListRequested && tryNextSavedNetworkFromScan()) {
     return;
   }
+  if (giveUpQuietly()) return;
 
   autoConnecting = false;
   state = WifiSelectionState::NETWORK_LIST;
@@ -430,6 +445,7 @@ void WifiSelectionActivity::handleAutoConnectFailure() {
     if (tryNextSavedNetworkFromScan()) {
       return;
     }
+    if (giveUpQuietly()) return;
     autoConnecting = false;
     state = WifiSelectionState::NETWORK_LIST;
     selectedNetworkIndex = 0;
@@ -528,8 +544,13 @@ void WifiSelectionActivity::checkConnectionStatus() {
       }
     }
 
-    // The radio is up anyway: refresh the home widget's weather if it has gone stale.
-    WEATHER.refreshIfDue(halClock.getEpochSeconds());
+    // The radio is up anyway: refresh the home widget's weather if it has gone
+    // stale. Under the render lock like the SSID save below: the fetch ends
+    // in an SD write.
+    {
+      RenderLock lock(*this);
+      WEATHER.refreshIfDue(halClock.getEpochSeconds());
+    }
 
     // Save this as the last connected network - SD card operations need lock as
     // we use SPI for both
