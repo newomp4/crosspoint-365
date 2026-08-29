@@ -216,11 +216,24 @@ void formatHeatText(const uint8_t kind, const Context& ctx, char* buf, const siz
   }
 }
 
-void prepareText(TextLine& line, const uint8_t font, const uint8_t size, const GfxRenderer& renderer) {
+// Picks the font for a text line, stepping down through the smaller cuts when
+// the chosen size would run past `maxWidth` (e.g. "74 / 90 days" at Large).
+void prepareText(TextLine& line, const uint8_t font, const uint8_t size, const int maxWidth,
+                 const GfxRenderer& renderer) {
   line.height = 0;
-  line.fontId = fontIdFor(font, size, line.style);
+  const uint8_t sizeIdx = clampIndex(size, CrossPointSettings::DOTS_SCALE_COUNT);
+  line.fontId = fontIdFor(font, sizeIdx, line.style);
   if (line.text[0] == '\0') return;
+  for (int candidate = sizeIdx; candidate > 0; candidate--) {
+    if (renderer.getTextWidth(line.fontId, line.text, line.style) <= maxWidth) break;
+    line.fontId = fontIdFor(font, static_cast<uint8_t>(candidate - 1), line.style);
+  }
   line.height = renderer.getLineHeight(line.fontId);
+}
+
+int maxTextWidth(const GfxRenderer& renderer) {
+  return renderer.getScreenWidth() -
+         2 * MARGIN_PX[clampIndex(SETTINGS.dotsMargin, CrossPointSettings::DOTS_SCALE_COUNT)];
 }
 
 // Places the grid and the text block; cols/rows and the two text strings must
@@ -465,8 +478,9 @@ bool prepareYear(Context& ctx) {
   } else {
     setClockHint(layout);
   }
-  prepareText(layout.title, s.dotsTitleFont, s.dotsTitleSize, *ctx.renderer);
-  prepareText(layout.subtitle, s.dotsSubtitleFont, ctx.date.valid ? s.dotsSubtitleSize : 0, *ctx.renderer);
+  prepareText(layout.title, s.dotsTitleFont, s.dotsTitleSize, maxTextWidth(*ctx.renderer), *ctx.renderer);
+  prepareText(layout.subtitle, s.dotsSubtitleFont, ctx.date.valid ? s.dotsSubtitleSize : 0, maxTextWidth(*ctx.renderer),
+              *ctx.renderer);
   placeLayout(layout, *ctx.renderer, s.yearDotSize);
 
   const int lastIndex = ctx.totalDays - 1;
@@ -529,8 +543,9 @@ bool prepareHeat(Context& ctx) {
   } else {
     setClockHint(layout);
   }
-  prepareText(layout.title, s.dotsTitleFont, s.dotsTitleSize, *ctx.renderer);
-  prepareText(layout.subtitle, s.dotsSubtitleFont, ctx.date.valid ? s.dotsSubtitleSize : 0, *ctx.renderer);
+  prepareText(layout.title, s.dotsTitleFont, s.dotsTitleSize, maxTextWidth(*ctx.renderer), *ctx.renderer);
+  prepareText(layout.subtitle, s.dotsSubtitleFont, ctx.date.valid ? s.dotsSubtitleSize : 0, maxTextWidth(*ctx.renderer),
+              *ctx.renderer);
   placeLayout(layout, *ctx.renderer, s.heatDotSize);
 
   // Any reading at all produces a gray shade on either background.
