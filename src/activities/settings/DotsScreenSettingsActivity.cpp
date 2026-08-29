@@ -220,7 +220,13 @@ std::string DotsScreenSettingsActivity::rowValueText(const int index) const {
   switch (row.kind) {
     case Row::Enum:
       return enumLabel(row);
-    case Row::Columns:
+    case Row::Columns: {
+      // "Rows by Month" and "Weeks" fix the column count; show what the grid uses.
+      const auto& s = SETTINGS;
+      if (screenKind == DotsScreen::Kind::YearProgress && s.yearLayout == S::YEAR_LAYOUT_MONTHS) return "31";
+      if (screenKind == DotsScreen::Kind::ReadingHeatmap && s.heatLayout == S::HEAT_LAYOUT_WEEKS) return "7";
+      return std::to_string(s.*(row.field));
+    }
     case Row::Days:
       return std::to_string(SETTINGS.*(row.field));
     case Row::ClockSync:

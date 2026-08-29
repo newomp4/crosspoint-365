@@ -8,10 +8,14 @@ void DotsScreenPreviewActivity::onEnter() {
 }
 
 void DotsScreenPreviewActivity::onExit() {
-  // The panel holds a grayscale composite and the framebuffer holds plane
-  // scratch, so the list underneath repaints with a ghost-clearing waveform
-  // instead of a differential update against a baseline that no longer exists.
-  renderer.promoteNextRefresh(HalDisplay::FULL_REFRESH);
+  // The panel shows a grayscale composite and the framebuffer holds plane
+  // scratch. Re-seed the controller's baseline planes from a white frame and
+  // hand the list underneath a HALF refresh, which drives every pixel to its
+  // target regardless of that baseline: one clean pass. Left to itself the
+  // driver would instead revert-scrub, full-sync and settle — three flashes.
+  renderer.clearScreen();
+  renderer.cleanupGrayscaleWithFrameBuffer();
+  renderer.promoteNextRefresh(HalDisplay::HALF_REFRESH);
   Activity::onExit();
 }
 

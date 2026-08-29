@@ -41,8 +41,14 @@ class ReadingStats {
 
   static constexpr uint16_t MAX_DAYS = 370;
   static constexpr unsigned long MAX_INPUT_GAP_MS = 5UL * 60UL * 1000UL;
-  static constexpr unsigned long SAVE_INTERVAL_MS = 5UL * 60UL * 1000UL;
-  static constexpr unsigned long DAY_CACHE_MS = 60UL * 1000UL;
+  // Flush cadence while reading. Anything unsaved is also written when the
+  // reader closes or the device sleeps, so a longer interval only risks the
+  // last few minutes on a crash — and spares the SD card a write every few
+  // pages.
+  static constexpr unsigned long SAVE_INTERVAL_MS = 10UL * 60UL * 1000UL;
+  // The RTC is on I2C; the date is re-read this often. A day boundary landing
+  // a few minutes late only moves that sliver of time to the next day.
+  static constexpr unsigned long DAY_CACHE_MS = 5UL * 60UL * 1000UL;
   // Days are stored relative to 2024-01-01 so an entry fits in 4 bytes.
   static constexpr int32_t DAY_BASE = 19723;
 
@@ -61,8 +67,7 @@ class ReadingStats {
   unsigned long lastSaveMs = 0;
   uint32_t pendingMs = 0;
 
-  // The RTC is on I2C; the current day is cached for DAY_CACHE_MS.
-  int32_t cachedDay = -1;
+  int32_t cachedDay = -1;  // epoch day, cached for DAY_CACHE_MS
   unsigned long cachedDayAtMs = 0;
   bool dayCacheValid = false;
 
