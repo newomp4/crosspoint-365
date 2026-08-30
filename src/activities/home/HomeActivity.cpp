@@ -274,7 +274,7 @@ void HomeActivity::loop() {
     }
   }
 
-  if (widgetBand > 0 && lastClockMinute != 255) {
+  if (lastClockMinute != 255) {
     uint8_t hour, minute;
     if (halClock.getTime(hour, minute) && minute != lastClockMinute) {
       lastClockMinute = minute;
@@ -423,8 +423,13 @@ void HomeActivity::render(RenderLock&&) {
   const int tileTop = metrics.homeTopPadding + widgetBand;
   if (widgetBand > 0) {
     HomeWidgets::draw(renderer, Rect{0, metrics.homeTopPadding, pageWidth, widgetBand}, widgetBandCompact);
+  }
+  {
+    // Minute-repaint whenever a clock is on screen: a clock widget, or the
+    // Mono header's corner clock (metrics.homeHeaderShowsDate themes).
     uint8_t hour, minute;
-    lastClockMinute = (HomeWidgets::showsClock() && halClock.getTime(hour, minute)) ? minute : 255;
+    const bool clockShown = (widgetBand > 0 && HomeWidgets::showsClock()) || metrics.homeHeaderShowsDate;
+    lastClockMinute = (clockShown && halClock.getTime(hour, minute)) ? minute : 255;
   }
 
   // Section zones (tile themes): the fixed card slot plus the flexible strip

@@ -2,6 +2,7 @@
 
 #include <Bitmap.h>
 #include <GfxRenderer.h>
+#include <HalClock.h>
 #include <HalGPIO.h>
 #include <HalStorage.h>
 #include <I18n.h>
@@ -10,6 +11,7 @@
 #include <cstdio>
 #include <string>
 
+#include "CrossPointSettings.h"
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
 #include "components/icons/menuIcons.h"
@@ -54,6 +56,14 @@ const uint8_t* menuIconFor(const UIIcon icon) {
 void MonoTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* title, const char* subtitle) const {
   BaseTheme::drawHeader(renderer, rect, nullptr, nullptr);
   const int side = MonoMetrics::values.headerSidePadding;
+  // Clock in the strip's left corner, the battery's counterpart: every screen
+  // tells the time on a device without one elsewhere.
+  char clock[12];
+  if (halClock.formatTime(clock, sizeof(clock), SETTINGS.clockUtcOffsetQ, SETTINGS.clockFormat == 1)) {
+    const int stripHeight = MonoMetrics::values.batteryBarHeight;
+    const int clockY = rect.y + (stripHeight - renderer.getLineHeight(UI_12_FONT_ID)) / 2;
+    renderer.drawText(UI_12_FONT_ID, rect.x + side, clockY, clock, true, EpdFontFamily::BOLD);
+  }
   if (title != nullptr && title[0] != '\0') {
     const int lineHeight = renderer.getLineHeight(UI_TITLE_FONT_ID);
     const int y = rect.y + rect.height - lineHeight - 6;

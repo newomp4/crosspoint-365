@@ -26,6 +26,8 @@ class ReadingStats {
   // Seconds read on an epoch day (days since 1970-01-01). Loads on first use.
   uint32_t secondsOn(int32_t epochDay);
   uint32_t allTimeSeconds();
+  // Earliest day with a record (epoch day), or -1 when nothing is tracked.
+  int32_t firstTrackedDay();
   uint32_t secondsForBook(const char* bookPath);
 
   struct Summary {

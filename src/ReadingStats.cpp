@@ -86,6 +86,11 @@ uint32_t ReadingStats::allTimeSeconds() {
   return allTime;
 }
 
+int32_t ReadingStats::firstTrackedDay() {
+  if (!loaded) load();
+  return count > 0 ? DAY_BASE + days[0].day : -1;
+}
+
 uint32_t ReadingStats::secondsForBook(const char* bookPath) {
   if (!loaded) load();
   if (!bookPath || !*bookPath) return 0;

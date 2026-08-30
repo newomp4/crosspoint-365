@@ -411,7 +411,12 @@ void CalendarStore::ensureLoaded() {
 
 void CalendarStore::setFeedUrl(const char* text) {
   ensureLoaded();
+  // Pasted links often carry stray whitespace; a trailing space breaks the GET.
+  while (text && (*text == ' ' || *text == '\n' || *text == '\r' || *text == '\t')) text++;
   copyField(url, text, sizeof(url));
+  size_t n = strlen(url);
+  while (n > 0 && (url[n - 1] == ' ' || url[n - 1] == '\n' || url[n - 1] == '\r' || url[n - 1] == '\t'))
+    url[--n] = '\0';
   count = 0;
   fetchedAt = 0;
   lastAttemptAt = 0;

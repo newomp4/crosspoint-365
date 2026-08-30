@@ -156,7 +156,13 @@ void fill(const uint8_t kind, const CalendarDate& date, Content& c) {
     case CrossPointSettings::HW_AVERAGE: {
       c.icon = &widget_icon_chart_bar;
       const auto month = date.valid ? READING_STATS.summarize(today - 29, today) : ReadingStats::Summary{};
-      ReadingStats::formatDuration(month.totalSeconds / 30, c.value, sizeof(c.value));
+      // Averaged over the days tracking has existed (capped at the 30-day
+      // window), so a fresh device shows a real number instead of near zero.
+      const int32_t first = READING_STATS.firstTrackedDay();
+      int32_t span = 30;
+      if (date.valid && first > 0 && first > today - 29) span = today - first + 1;
+      if (span < 1) span = 1;
+      ReadingStats::formatDuration(month.totalSeconds / static_cast<uint32_t>(span), c.value, sizeof(c.value));
       snprintf(c.caption, sizeof(c.caption), "%s", tr(STR_HW_CAP_AVERAGE));
       break;
     }
