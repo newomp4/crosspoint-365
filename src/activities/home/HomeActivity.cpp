@@ -434,6 +434,18 @@ void HomeActivity::render(RenderLock&&) {
   }
 
   const int menuTop = menuTopFor(tileTop);
+
+  // Tile themes pin the menu to the bottom; whatever is left between the book
+  // card and the menu becomes the reading-activity panel (skipped when the
+  // band squeezed it below a usable height).
+  if (metrics.homeWidgetTiles && metrics.homeMenuAtBottom) {
+    const int panelTop = tileTop + metrics.homeCoverTileHeight + 12;
+    const int panelHeight = menuTop - 12 - panelTop;
+    if (panelHeight >= 64) {
+      HomeWidgets::drawActivityPanel(renderer, Rect{0, panelTop, pageWidth, panelHeight});
+    }
+  }
+
   GUI.drawButtonMenu(
       renderer, Rect{0, menuTop, pageWidth, pageHeight - menuTop - metrics.buttonHintsHeight},
       static_cast<int>(menuItems.size()),

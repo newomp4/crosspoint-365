@@ -180,8 +180,8 @@ Rect MonoTheme::drawPopup(const GfxRenderer& renderer, const char* message) cons
   return LyraTheme::drawPopup(renderer, message);
 }
 
-// Button hints as bare labels under a hairline: the physical buttons still get
-// their names, without a second row of boxes under the tab bar.
+// Button hints as key-cap chips: each physical button gets a small dithered
+// capsule with its label, sitting over the button it names.
 void MonoTheme::drawButtonHints(GfxRenderer& renderer, const char* btn1, const char* btn2, const char* btn3,
                                 const char* btn4) const {
   if (gpio.hasTouch()) return;
@@ -191,20 +191,24 @@ void MonoTheme::drawButtonHints(GfxRenderer& renderer, const char* btn1, const c
   const int pageHeight = renderer.getScreenHeight();
   const int pageWidth = renderer.getScreenWidth();
   constexpr int buttonWidth = 80;
+  constexpr int chipHeight = 26;
+  constexpr int chipPadX = 10;
   constexpr int narrowButtonPositions[] = {58, 146, 254, 342};
   constexpr int wideButtonPositions[] = {65, 157, 291, 383};
   const int* positions = pageWidth >= 528 ? wideButtonPositions : narrowButtonPositions;
   const char* labels[] = {btn1, btn2, btn3, btn4};
   const int lineHeight = renderer.getLineHeight(SMALL_FONT_ID);
   const int top = pageHeight - MonoMetrics::values.buttonHintsHeight;
-  const int textY = top + (MonoMetrics::values.buttonHintsHeight - lineHeight) / 2;
+  const int chipY = top + (MonoMetrics::values.buttonHintsHeight - chipHeight) / 2;
+  const int textY = chipY + (chipHeight - lineHeight) / 2;
 
-  renderer.fillRectDither(MonoMetrics::values.contentSidePadding, top, pageWidth - 2 * MonoMetrics::values.contentSidePadding, 1,
-                          Color::DarkGray);
   for (int i = 0; i < 4; i++) {
     if (labels[i] == nullptr || labels[i][0] == '\0') continue;
-    const std::string label = renderer.truncatedText(SMALL_FONT_ID, labels[i], buttonWidth);
+    const std::string label = renderer.truncatedText(SMALL_FONT_ID, labels[i], buttonWidth - 2 * chipPadX + 8);
     const int width = renderer.getTextWidth(SMALL_FONT_ID, label.c_str());
+    const int chipWidth = std::min(buttonWidth + 8, width + 2 * chipPadX);
+    const int chipX = positions[i] + (buttonWidth - chipWidth) / 2;
+    renderer.fillRoundedRect(chipX, chipY, chipWidth, chipHeight, chipHeight / 2, Color::LightGray);
     renderer.drawText(SMALL_FONT_ID, positions[i] + (buttonWidth - width) / 2, textY, label.c_str(), true);
   }
   renderer.setOrientation(savedOrientation);

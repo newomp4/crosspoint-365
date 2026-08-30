@@ -6,8 +6,8 @@
 // light-gray cards with generous radii, widget tiles, and a one-row icon tab
 // bar for the home menu. Night mode inverts it into the dark version.
 namespace MonoMetrics {
-constexpr ThemeMetrics values = {.batteryWidth = 16,
-                                 .batteryHeight = 12,
+constexpr ThemeMetrics values = {.batteryWidth = 26,
+                                 .batteryHeight = 10,
                                  .topPadding = 5,
                                  .batteryBarHeight = 34,
                                  .headerHeight = 96,
@@ -82,7 +82,8 @@ constexpr ThemeMetrics values = {.batteryWidth = 16,
                                  .homeMenuHorizontal = true,
                                  .homeMenuAtBottom = true,
                                  .homeWidgetTiles = true,
-                                 .homeHeaderShowsDate = true};
+                                 .homeHeaderShowsDate = true,
+                                 .batteryPill = true};
 }
 
 class MonoTheme : public LyraTheme {

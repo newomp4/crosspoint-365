@@ -108,6 +108,18 @@ void BaseTheme::drawBatteryLeft(const GfxRenderer& renderer, Rect rect, const bo
     renderer.drawText(SMALL_FONT_ID, rect.x + batteryPercentSpacing + rect.width, rect.y, percentageText.c_str());
   }
 
+  if (UITheme::getInstance().getMetrics().batteryPill) {
+    // Same rounded fill-bar treatment as the pill header battery. Charging
+    // dithers the remainder instead of drawing a bolt.
+    const int h = std::max(6, static_cast<int>(rect.height) - 2);
+    const int barY = y + (rect.height - h) / 2;
+    const int r = h / 2;
+    renderer.fillRoundedRect(rect.x, barY, rect.width, h, r, Color::LightGray);
+    const int fill = std::max(h, static_cast<int>(rect.width) * percentage / 100);
+    renderer.fillRoundedRect(rect.x, barY, fill, h, r, gpio.isUsbConnected() ? Color::DarkGray : Color::Black);
+    return;
+  }
+
   const Rect iconRect{rect.x, y, rect.width, rect.height};
   drawBatteryOutline(renderer, rect.x, y, rect.width, rect.height);
   fillBatteryIcon(renderer, iconRect, percentage);
@@ -363,6 +375,13 @@ void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
   battery.glyphWidth = static_cast<int16_t>(metrics.batteryWidth);
   battery.glyphHeight = static_cast<int16_t>(metrics.batteryHeight);
   battery.gap = batteryPercentSpacing;
+  if (metrics.batteryPill) {
+    // Rounded fill bar on a dithered track; charging shows as a dithered fill
+    // (the component's no-icon charging treatment).
+    battery.style = fui::BatteryIndicatorStyle::Bar;
+    battery.barTrack = fui::BatteryBarTrack::Dither;
+    battery.barRadius = static_cast<uint8_t>(metrics.batteryHeight / 2);
+  }
   // Detached: hug the corner (12px, the legacy inset) within the battery
   // strip; shared line: sit on the content grid. Both anchor to the band's top
   // strip (batteryBarHeight) — the legacy shared-line headers drew the battery

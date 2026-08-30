@@ -35,7 +35,7 @@ ICONS = [
     ("book_bookmark", "book-bookmark-fill"),
     ("fire", "fire-fill"),
     ("chart_bar", "chart-bar-fill"),
-    ("hourglass", "hourglass-medium-fill"),
+    ("hourglass", "hourglass-fill"),
     ("battery", "battery-high-fill"),
     ("sun", "sun-fill"),
     ("moon", "moon-fill"),

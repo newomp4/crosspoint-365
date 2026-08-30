@@ -23,4 +23,7 @@ int bandHeight(const GfxRenderer& renderer, bool compact);
 void draw(const GfxRenderer& renderer, const Rect& band, bool compact);
 // "Saturday, Aug 29" for the Mono header; false when the clock is not set.
 bool formatHeaderDate(char* buf, size_t bufSize);
+// Last-14-days reading bars on a widget-style card; fills the flexible space
+// under the continue-reading card on tile themes.
+void drawActivityPanel(const GfxRenderer& renderer, const Rect& rect);
 }  // namespace HomeWidgets

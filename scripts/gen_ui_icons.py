@@ -28,7 +28,7 @@ LIST_ICONS = [
     ("file", "file-fill"), ("wifi", "wifi-high-fill"), ("library", "books-fill"), ("radio_tower", "broadcast-fill"),
     ("sun", "sun"), ("moon", "moon"),  # outline: the frontlight toggle's "off" state
     ("sun_filled", "sun-fill"), ("moon_filled", "moon-fill"),
-    ("upload", "upload-simple-fill"), ("download", "download-simple-fill"), ("bookmark", "bookmark-simple-fill"),
+    ("upload", "arrow-fat-up-fill"), ("download", "arrow-fat-down-fill"), ("bookmark", "bookmark-simple-fill"),
     ("usb", "usb-fill"), ("search", "magnifying-glass-fill"),
 ]
 TOOLBAR_ICONS = [
@@ -37,8 +37,8 @@ TOOLBAR_ICONS = [
 ]
 # Legacy home-menu bitmaps: identifier -> svg (drawn by GfxRenderer::drawIcon)
 MENU_ICONS = [
-    ("FolderIcon", "folder-fill"), ("BookIcon", "book-fill"), ("RecentIcon", "clock-counter-clockwise-fill"),
-    ("Settings2Icon", "gear-fill"), ("TransferIcon", "arrows-left-right-fill"), ("LibraryIcon", "books-fill"),
+    ("FolderIcon", "folder-fill"), ("BookIcon", "book-fill"), ("RecentIcon", "book-bookmark-fill"),
+    ("Settings2Icon", "gear-fill"), ("TransferIcon", "paper-plane-tilt-fill"), ("LibraryIcon", "books-fill"),
     ("WifiIcon", "wifi-high-fill"), ("HotspotIcon", "broadcast-fill"), ("BookmarkIcon", "bookmark-simple-fill"),
     ("CoverIcon", "image-square-fill"), ("TimerIcon", "timer-fill"),
 ]

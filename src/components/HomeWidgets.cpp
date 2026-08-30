@@ -412,3 +412,58 @@ void HomeWidgets::draw(const GfxRenderer& renderer, const Rect& band, const bool
     }
   }
 }
+
+// Reading-activity panel: one bar per day for the last two weeks, on the same
+// dithered card as the widget tiles. Fills the flexible space between the
+// continue-reading card and a bottom-pinned menu (Mono).
+void HomeWidgets::drawActivityPanel(const GfxRenderer& renderer, const Rect& rect) {
+  constexpr int DAYS = 14;
+  constexpr int BAR_GAP = 6;
+  const auto& metrics = UITheme::getInstance().getMetrics();
+  const int side = metrics.contentSidePadding;
+  const int x = rect.x + side;
+  const int width = rect.width - 2 * side;
+  renderer.fillRoundedRect(x, rect.y, width, rect.height, TILE_RADIUS, Color::LightGray);
+
+  READING_STATS.ensureLoaded();
+  const int32_t today = CalendarDate::today().epochDay();
+  uint32_t seconds[DAYS];
+  uint32_t total = 0;
+  uint32_t maxSeconds = 0;
+  for (int i = 0; i < DAYS; i++) {
+    seconds[i] = READING_STATS.secondsOn(today - (DAYS - 1 - i));
+    total += seconds[i];
+    maxSeconds = std::max(maxSeconds, seconds[i]);
+  }
+
+  const int captionLine = renderer.getLineHeight(CAPTION_FONT);
+  renderer.drawText(CAPTION_FONT, x + TILE_PAD + 2, rect.y + TILE_PAD, tr(STR_HW_LAST_14), true);
+  char totalText[16];
+  ReadingStats::formatDuration(total, totalText, sizeof(totalText));
+  const int totalWidth = renderer.getTextWidth(VALUE_FONT, totalText);
+  const int valueLine = renderer.getLineHeight(VALUE_FONT);
+  renderer.drawText(VALUE_FONT, x + width - TILE_PAD - 2 - totalWidth,
+                    rect.y + TILE_PAD + (captionLine - valueLine) / 2, totalText, true);
+
+  const int chartTop = rect.y + TILE_PAD + std::max(captionLine, valueLine) + 8;
+  const int chartBottom = rect.y + rect.height - TILE_PAD;
+  const int chartHeight = chartBottom - chartTop;
+  if (chartHeight < 12) return;
+  const int barWidth = (width - 2 * (TILE_PAD + 2) - (DAYS - 1) * BAR_GAP) / DAYS;
+  if (barWidth < 4) return;
+  const int chartX = x + (width - DAYS * barWidth - (DAYS - 1) * BAR_GAP) / 2;
+  for (int i = 0; i < DAYS; i++) {
+    const int bx = chartX + i * (barWidth + BAR_GAP);
+    int barHeight = 3;
+    if (maxSeconds > 0 && seconds[i] > 0) {
+      barHeight = std::max(4, static_cast<int>(static_cast<uint64_t>(chartHeight) * seconds[i] / maxSeconds));
+    }
+    const int radius = std::min(3, barWidth / 2);
+    if (seconds[i] > 0) {
+      renderer.fillRoundedRect(bx, chartBottom - barHeight, barWidth, barHeight, radius, Color::Black);
+    } else {
+      // Empty day: a low stub so the axis stays readable on the dither.
+      renderer.fillRoundedRect(bx, chartBottom - barHeight, barWidth, barHeight, 1, Color::DarkGray);
+    }
+  }
+}

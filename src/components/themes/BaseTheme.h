@@ -125,6 +125,8 @@ struct ThemeMetrics {
   bool homeMenuAtBottom = false;  // pin the menu just above the button hints
   bool homeWidgetTiles = false;
   bool homeHeaderShowsDate = false;
+  // Battery as a rounded fill bar (dither track) instead of the boxy icon.
+  bool batteryPill = false;
 };
 
 enum UIIcon {
