@@ -72,6 +72,7 @@ class HomeActivity final : public Activity {
   void onSettingsOpen();
   void onFileTransferOpen();
   void onPomodoroOpen();
+  void flashMenuSelection(int menuIndex);
   void onOpdsBrowserOpen();
 
   int getMenuItemCount() const;

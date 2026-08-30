@@ -465,5 +465,9 @@ void HomeWidgets::drawActivityPanel(const GfxRenderer& renderer, const Rect& rec
       // Empty day: a low stub so the axis stays readable on the dither.
       renderer.fillRoundedRect(bx, chartBottom - barHeight, barWidth, barHeight, 1, Color::DarkGray);
     }
+    if (i == DAYS - 1 && chartBottom + 8 <= rect.y + rect.height) {
+      // Today marker under the rightmost bar.
+      renderer.fillRoundedRect(bx + barWidth / 2 - 2, chartBottom + 4, 4, 4, 2, Color::Black);
+    }
   }
 }

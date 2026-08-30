@@ -37,7 +37,7 @@ TOOLBAR_ICONS = [
 ]
 # Legacy home-menu bitmaps: identifier -> svg (drawn by GfxRenderer::drawIcon)
 MENU_ICONS = [
-    ("FolderIcon", "folder-fill"), ("BookIcon", "book-fill"), ("RecentIcon", "book-bookmark-fill"),
+    ("FolderIcon", "folder-fill"), ("BookIcon", "book-fill"), ("RecentIcon", "clock-counter-clockwise-fill"),
     ("Settings2Icon", "gear-fill"), ("TransferIcon", "paper-plane-tilt-fill"), ("LibraryIcon", "books-fill"),
     ("WifiIcon", "wifi-high-fill"), ("HotspotIcon", "broadcast-fill"), ("BookmarkIcon", "bookmark-simple-fill"),
     ("CoverIcon", "image-square-fill"), ("TimerIcon", "timer-fill"),
@@ -170,6 +170,6 @@ def write_menu_header(path, icons, px):
     print(f"wrote {os.path.relpath(path, ROOT)} ({len(icons)} icons)")
 
 
-write_icon_header(os.path.join(ICON_DIR, "listIcons.h"), LIST_ICONS, (24, 32), "Phosphor Icons, MIT")
-write_icon_header(os.path.join(ICON_DIR, "readerToolbarIcons.h"), TOOLBAR_ICONS, (24,), "Phosphor Icons, MIT")
+write_icon_header(os.path.join(ICON_DIR, "listIcons.h"), LIST_ICONS, (24, 32), "per-icon source noted above each glyph: phosphor/ = Phosphor Icons (MIT), custom/ = separately licensed set - do not redistribute as vectors")
+write_icon_header(os.path.join(ICON_DIR, "readerToolbarIcons.h"), TOOLBAR_ICONS, (24,), "per-icon source noted above each glyph: phosphor/ = Phosphor Icons (MIT), custom/ = separately licensed set - do not redistribute as vectors")
 write_menu_header(os.path.join(ICON_DIR, "menuIcons.h"), MENU_ICONS, 32)

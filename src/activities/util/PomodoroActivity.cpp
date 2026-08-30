@@ -53,9 +53,16 @@ void PomodoroActivity::loop() {
   if (POMODORO.consumePhaseEnd() != PomodoroTimer::Phase::Idle) {
     announcePhase = true;
     requestUpdate();
-  } else if (POMODORO.isActive()) {
-    const uint32_t minute = POMODORO.remainingSeconds() / 60;
-    if (minute != lastShownMinute) requestUpdate();
+  } else if (POMODORO.isActive() && !POMODORO.isPaused()) {
+    // Once a minute normally; every 5s inside the final minute, every second
+    // for the last ten, so the countdown visibly runs out.
+    const uint32_t remaining = POMODORO.remainingSeconds();
+    if (remaining > 60) {
+      if (remaining / 60 != lastShownMinute) requestUpdate();
+    } else if (remaining != lastShownSecond && (remaining <= 10 || remaining % 5 == 0)) {
+      lastShownSecond = remaining;
+      requestUpdate();
+    }
   }
 
   if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {

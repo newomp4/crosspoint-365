@@ -250,6 +250,7 @@ void HomeActivity::loop() {
       return;
     }
     const int menuIndex = selectorIndex - static_cast<int>(recentBooks.size());
+    flashMenuSelection(menuIndex);
     switch (indexToMenuItem(menuIndex, hasOpdsServers)) {
       case HomeMenuItem::FILE_BROWSER:
         onFileBrowserOpen();
@@ -278,19 +279,6 @@ void HomeActivity::loop() {
     selectorIndex = ButtonNavigator::nextIndex(selectorIndex, menuCount);
     requestUpdate();
   });
-
-  // Left/Right walk the selection too; on a tab-bar theme that is the natural
-  // way along the bar, and the buttons are otherwise unused here.
-  if (mappedInput.wasReleased(MappedInputManager::Button::Right)) {
-    selectorIndex = ButtonNavigator::nextIndex(selectorIndex, menuCount);
-    requestUpdate();
-    return;
-  }
-  if (mappedInput.wasReleased(MappedInputManager::Button::Left)) {
-    selectorIndex = ButtonNavigator::previousIndex(selectorIndex, menuCount);
-    requestUpdate();
-    return;
-  }
 
   buttonNavigator.onPrevious([this, menuCount] {
     selectorIndex = ButtonNavigator::previousIndex(selectorIndex, menuCount);
@@ -479,5 +467,24 @@ void HomeActivity::onSettingsOpen() { activityManager.goToSettings(); }
 void HomeActivity::onFileTransferOpen() { activityManager.goToFileTransfer(); }
 
 void HomeActivity::onPomodoroOpen() { activityManager.goToPomodoro(); }
+
+// Press feedback on the tab bar: fill the activated slot solid for the moment
+// the next activity takes to load. A ~120ms fast partial refresh makes the
+// press feel acknowledged before the slower full paint lands.
+void HomeActivity::flashMenuSelection(const int menuIndex) {
+  const auto& metrics = UITheme::getInstance().getMetrics();
+  if (!metrics.homeMenuHorizontal || !metrics.homeMenuAtBottom) return;
+  const int pageWidth = renderer.getScreenWidth();
+  const int pageHeight = renderer.getScreenHeight();
+  const int menuCountRendered = getMenuItemCount() - static_cast<int>(recentBooks.size());
+  if (menuCountRendered <= 0 || menuIndex < 0 || menuIndex >= menuCountRendered) return;
+  const int side = metrics.contentSidePadding;
+  const int slotWidth = (pageWidth - 2 * side) / menuCountRendered;
+  const int barHeight = GUI.getMenuRowHeight(renderer);
+  const int menuTop = pageHeight - metrics.buttonHintsHeight - 8 - barHeight;
+  RenderLock lock;
+  renderer.fillRoundedRect(side + menuIndex * slotWidth + 2, menuTop, slotWidth - 4, barHeight, 14, Color::Black);
+  renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+}
 
 void HomeActivity::onOpdsBrowserOpen() { activityManager.goToBrowser(); }

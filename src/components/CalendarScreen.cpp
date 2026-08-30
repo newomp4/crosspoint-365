@@ -137,6 +137,10 @@ void CalendarScreen::render(GfxRenderer& renderer) {
       formatClock(e.startMinute, timeText, sizeof(timeText));
     }
     const bool now = !e.allDay && e.startMinute <= nowLocalMinute && e.endMinute() > nowLocalMinute;
+    if (now) {
+      // Happening-now marker: a small ink bar in the left margin.
+      renderer.fillRoundedRect(SIDE - 12, y + 3, 4, eventLh - 6, 2, Color::Black);
+    }
     renderer.drawText(UI_10_FONT_ID, SIDE, y + (eventLh - dayLh) / 2, timeText, true,
                       now ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
     const int textX = SIDE + TIME_COLUMN;

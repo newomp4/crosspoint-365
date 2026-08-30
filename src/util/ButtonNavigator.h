@@ -17,7 +17,11 @@ class ButtonNavigator final {
   [[nodiscard]] bool shouldNavigateContinuously() const;
 
  public:
-  explicit ButtonNavigator(const uint16_t continuousIntervalMs = 500, const uint16_t continuousStartMs = 500)
+  // Start well past a deliberate press: e-ink repaints lag the button, so
+  // people naturally hold until they see the change — with a 500 ms start the
+  // hold-repeat fired once on top of the press edge and every tap moved two
+  // rows. Once repeating, a shorter interval keeps held-scrolling quick.
+  explicit ButtonNavigator(const uint16_t continuousIntervalMs = 400, const uint16_t continuousStartMs = 900)
       : continuousStartMs(continuousStartMs), continuousIntervalMs(continuousIntervalMs) {}
 
   static void setMappedInputManager(const MappedInputManager& mappedInputManager) { mappedInput = &mappedInputManager; }

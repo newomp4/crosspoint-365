@@ -17,6 +17,7 @@ class PomodoroActivity final : public Activity {
 
  private:
   uint32_t lastShownMinute = 0xFFFFFFFF;
+  uint32_t lastShownSecond = 0xFFFFFFFF;
   bool announcePhase = false;  // next render follows a phase switch: flash it
 
   void adjustFocus(int step);
