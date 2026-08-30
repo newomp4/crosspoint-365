@@ -46,6 +46,20 @@ bool isRedirect(int status) {
   return status == 301 || status == 302 || status == 303 || status == 307 || status == 308;
 }
 
+char s_lastError[72] = "";
+
+// "h<hop> <host> <what>" — host clipped so the line fits a small screen.
+void noteError(const int hop, const std::string& url, const char* fmt, const int a = 0, const int b = 0) {
+  const size_t schemeEnd = url.find("://");
+  const size_t hostStart = schemeEnd == std::string::npos ? 0 : schemeEnd + 3;
+  const size_t hostEnd = url.find('/', hostStart);
+  std::string host = url.substr(hostStart, hostEnd == std::string::npos ? std::string::npos : hostEnd - hostStart);
+  if (host.size() > 30) host = host.substr(0, 30);
+  char what[32];
+  snprintf(what, sizeof(what), fmt, a, b);
+  snprintf(s_lastError, sizeof(s_lastError), "h%d %s %s", hop + 1, host.c_str(), what);
+}
+
 // OtaUpdater.cpp already disables WiFi power-save for firmware downloads, but
 // OPDS feed/book fetches never did despite being able to run just as long for
 // a large category. Modem sleep periodically powers the radio down between
@@ -68,6 +82,7 @@ HttpDownloader::DownloadError runGetWolf(const std::string& startUrl, const std:
                                          const std::string& password, Sink& sink) {
   WifiPowerSaveGuard psGuard;
   std::string url = startUrl;
+  s_lastError[0] = '\0';
 
   for (int hop = 0; hop <= MAX_REDIRECTS; ++hop) {
     freeink::SecureHttpClient http;
@@ -75,6 +90,7 @@ HttpDownloader::DownloadError runGetWolf(const std::string& startUrl, const std:
     http.setInsecure();
     if (!http.begin(url)) {
       LOG_ERR("HTTP", "wolfSSL bad URL: %s", url.c_str());
+      noteError(hop, url, "bad url");
       return HttpDownloader::HTTP_ERROR;
     }
     // setUserAgent replaces SecureHttpClient's built-in UA; addHeader would
@@ -101,29 +117,34 @@ HttpDownloader::DownloadError runGetWolf(const std::string& startUrl, const std:
 
     if (http.aborted()) return HttpDownloader::ABORTED;
     if (status < 0) {
-      LOG_ERR("HTTP", "wolfSSL request failed: %s", url.c_str());
+      LOG_ERR("HTTP", "wolfSSL request failed (%d): %s", status, url.c_str());
+      noteError(hop, url, "tls/conn %d", status);
       return HttpDownloader::HTTP_ERROR;
     }
     if (isRedirect(status)) {
       const std::string location = http.getHeader("location");
       if (location.empty() || !freeink::SecureHttpClient::resolveUrl(url, location, url)) {
         LOG_ERR("HTTP", "wolfSSL bad redirect: %d", status);
+        noteError(hop, url, "bad redirect %d", status);
         return HttpDownloader::HTTP_ERROR;
       }
       continue;
     }
     if (status != 200) {
       LOG_ERR("HTTP", "wolfSSL unexpected status: %d", status);
+      noteError(hop, url, "HTTP %d", status);
       return HttpDownloader::HTTP_ERROR;
     }
     if (http.callbackAborted()) return HttpDownloader::FILE_ERROR;
     if (!http.responseComplete()) {
       LOG_ERR("HTTP", "wolfSSL incomplete: got %zu of %zu bytes", sink.downloaded, sink.total);
+      noteError(hop, url, "cut %d/%d", static_cast<int>(sink.downloaded), static_cast<int>(sink.total));
       return HttpDownloader::HTTP_ERROR;
     }
     return HttpDownloader::OK;
   }
   LOG_ERR("HTTP", "too many redirects");
+  noteError(MAX_REDIRECTS, url, "redirect loop");
   return HttpDownloader::HTTP_ERROR;
 }
 #endif
@@ -249,6 +270,8 @@ HttpDownloader::DownloadError runGetSecure(const std::string& url, const std::st
 #endif
 }
 }  // namespace
+
+const char* HttpDownloader::lastError() { return s_lastError; }
 
 bool HttpDownloader::fetchUrl(const std::string& url, Stream& outContent, const std::string& username,
                               const std::string& password) {

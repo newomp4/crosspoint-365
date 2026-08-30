@@ -93,7 +93,7 @@
             status.textContent = "Saved, but that link doesn't return calendar data. Copy the \u201cSecret address in iCal format\u201d \u2014 not the calendar's web link.";
           } else {
             status.className = "status err";
-            status.textContent = "Saved, but the reader couldn't fetch it (network error). It will retry on the next calendar update.";
+            status.textContent = "Saved, but the reader couldn't fetch it" + (d.detail ? " (" + d.detail + ")" : " (network error)") + ". It will retry on the next calendar update.";
           }
           load();
         } catch (e) {

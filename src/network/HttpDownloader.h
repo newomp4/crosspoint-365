@@ -11,6 +11,12 @@
  */
 class HttpDownloader {
  public:
+  // One-line description of the most recent fetch failure ("h2 script.google
+  // .com HTTP 400", "h1 x tls/connect"), empty after a success. For failure
+  // screens and the web API, so field reports carry the failing stage.
+  static const char* lastError();
+
+ public:
   using ProgressCallback = std::function<void(size_t downloaded, size_t total)>;
   // Called with each body chunk as it arrives; return false to abort. Lets a
   // streaming parser consume the response without buffering the whole body.

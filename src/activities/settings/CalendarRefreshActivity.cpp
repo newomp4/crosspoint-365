@@ -15,6 +15,7 @@
 #include "activities/network/WifiSelectionActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "network/HttpDownloader.h"
 
 void CalendarRefreshActivity::onEnter() {
   Activity::onEnter();
@@ -121,10 +122,17 @@ void CalendarRefreshActivity::render(RenderLock&&) {
     case NO_WIFI:
       renderer.drawCenteredText(UI_12_FONT_ID, midY - 20, tr(STR_CAL_NO_WIFI), true, EpdFontFamily::BOLD);
       break;
-    case FAILED:
+    case FAILED: {
       renderer.drawCenteredText(UI_12_FONT_ID, midY - 20, tr(STR_CAL_FAILED), true, EpdFontFamily::BOLD);
-      renderer.drawCenteredText(UI_10_FONT_ID, midY + 10, tr(STR_CHECK_SERIAL_OUTPUT));
+      const char* detail = HttpDownloader::lastError();
+      if (detail[0] != '\0') {
+        renderer.drawCenteredText(UI_10_FONT_ID, midY + 10,
+                                  renderer.truncatedText(UI_10_FONT_ID, detail, pageWidth - 40).c_str());
+      } else {
+        renderer.drawCenteredText(UI_10_FONT_ID, midY + 10, tr(STR_CHECK_SERIAL_OUTPUT));
+      }
       break;
+    }
   }
 
   if (state != SYNCING) {

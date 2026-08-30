@@ -17,6 +17,7 @@
 #include "CalendarStore.h"
 #include "CrossPointSettings.h"
 #include "FontInstaller.h"
+#include "HttpDownloader.h"
 #include "OpdsServerStore.h"
 #include "SdCardFontSystem.h"
 #include "SettingsList.h"
@@ -1210,6 +1211,7 @@ void CrossPointWebServer::handlePostCalendar() {
       default:
         doc["fetched"] = false;
         doc["error"] = "fetch_failed";
+        doc["detail"] = HttpDownloader::lastError();
         break;
     }
   }
