@@ -19,7 +19,9 @@
 #include "FirmwareFlasher.h"
 
 namespace {
-constexpr char latestReleaseUrl[] = "https://api.github.com/repos/crosspoint-reader/crosspoint-reader/releases/latest";
+// The fork updates from its own releases; stock upstream firmware would
+// silently replace every fork feature.
+constexpr char latestReleaseUrl[] = "https://api.github.com/repos/newomp4/crosspoint-365/releases/latest";
 }  // namespace
 
 OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
@@ -78,13 +80,16 @@ bool OtaUpdater::isUpdateNewer() const {
     return false;
   }
 
-  int currentMajor, currentMinor, currentPatch;
-  int latestMajor, latestMinor, latestPatch;
+  int currentMajor = 0, currentMinor = 0, currentPatch = 0;
+  int latestMajor = 0, latestMinor = 0, latestPatch = 0;
 
   const auto currentVersion = CROSSPOINT_VERSION;
 
-  // semantic version check (only match on 3 segments)
-  sscanf(latestVersion.c_str(), "%d.%d.%d", &latestMajor, &latestMinor, &latestPatch);
+  // Semantic version check (three segments). Fork tags carry a leading "v"
+  // (v1.6.2-365); a bare %d would fail on it and leave the fields unset.
+  const char* latestDigits = latestVersion.c_str();
+  if (*latestDigits == 'v' || *latestDigits == 'V') latestDigits++;
+  sscanf(latestDigits, "%d.%d.%d", &latestMajor, &latestMinor, &latestPatch);
   sscanf(currentVersion, "%d.%d.%d", &currentMajor, &currentMinor, &currentPatch);
 
   /*

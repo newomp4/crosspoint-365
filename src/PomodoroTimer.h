@@ -33,6 +33,11 @@ class PomodoroTimer {
   // foreground activity to announce the switch.
   Phase consumePhaseEnd();
 
+  // Any button press feeds this; a session nobody has touched for a full
+  // focus+break cycle is treated as abandoned and stops instead of cycling
+  // (and suppressing auto-sleep) forever.
+  void noteActivity(uint32_t nowMs) { lastActivityMs = nowMs; }
+
  private:
   PomodoroTimer() = default;
 
@@ -41,6 +46,7 @@ class PomodoroTimer {
   bool paused = false;
   uint32_t phaseStartMs = 0;
   uint32_t phaseDurationMs = 0;
+  uint32_t lastActivityMs = 0;
   uint32_t pausedRemainingMs = 0;
   uint16_t focusMin = 25;
   uint16_t breakMin = 5;

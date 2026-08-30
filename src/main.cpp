@@ -333,10 +333,16 @@ void maybeRunCalendarSleepLoop() {
   const auto powerGpio = static_cast<gpio_num_t>(powerPin);
   constexpr uint16_t MIN_BATTERY_PERCENT = 15;
 
+  WIFI_STORE.loadFromFile();
+  if (WIFI_STORE.getLastConnectedSsid().empty()) {
+    // Nothing to refresh with: plain deep sleep beats idling in light sleep.
+    LOG_INF("CAL", "No saved network; skipping calendar loop");
+    return;
+  }
+
   // Light sleep keeps the rails up, so the frontlight must be put out
   // explicitly (deep sleep kills its PWM as a side effect; this path doesn't).
   Frontlight.setOn(false);
-  WIFI_STORE.loadFromFile();
   LOG_INF("CAL", "Calendar sleep loop armed: every %lus", static_cast<unsigned long>(intervalS));
 
   while (true) {
@@ -383,8 +389,21 @@ void maybeRunCalendarSleepLoop() {
     const auto cred = WIFI_STORE.findCredential(ssid);
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid.c_str(), cred && !cred->password.empty() ? cred->password.c_str() : nullptr);
+    const int pressedLevel = activeHigh ? HIGH : LOW;
     bool connected = false;
     for (int i = 0; i < 100 && !connected; i++) {  // up to 10 s
+      // The refresh window must not swallow a wake press: joining Wi-Fi takes
+      // seconds, and an ignored power button reads as a dead device.
+      if (digitalRead(powerPin) == pressedLevel) {
+        LOG_INF("CAL", "Power button during refresh; waking");
+        WiFi.disconnect(true);
+        WiFi.mode(WIFI_OFF);
+        if (APP_STATE.lastSleepFromReader && !APP_STATE.openEpubPath.empty()) {
+          silentRestartToReader();
+        } else {
+          silentRestart();
+        }
+      }
       connected = WiFi.status() == WL_CONNECTED;
       delay(100);
     }
@@ -774,7 +793,8 @@ void loop() {
   const bool userInput =
       gpio.wasAnyPressed() || gpio.wasAnyReleased() || gpio.wasTouchActivity() || halTiltSensor.hadActivity();
   if (userInput || activityManager.preventAutoSleep()) {
-    lastActivityTime = millis();         // Reset inactivity timer
+    lastActivityTime = millis();  // Reset inactivity timer
+    POMODORO.noteActivity(millis());
     powerManager.setPowerSaving(false);  // Restore normal CPU frequency on user activity
   }
 

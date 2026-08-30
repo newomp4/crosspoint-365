@@ -13,10 +13,29 @@
 
 namespace {
 
+// Truncation must not split a UTF-8 sequence: a dangling lead/continuation
+// byte at the end would reach the glyph renderer as garbage.
+void trimUtf8Tail(char* dest) {
+  const size_t len = strlen(dest);
+  if (len == 0) return;
+  size_t i = len;
+  while (i > 0 && (static_cast<uint8_t>(dest[i - 1]) & 0xC0) == 0x80) i--;  // back over continuations
+  if (i == 0) {  // nothing but continuation bytes: invalid input, drop it
+    dest[0] = '\0';
+    return;
+  }
+  const uint8_t lead = static_cast<uint8_t>(dest[i - 1]);
+  if (lead < 0x80) return;  // ASCII tail is complete
+  const size_t have = len - i;
+  const size_t need = lead >= 0xF0 ? 3 : lead >= 0xE0 ? 2 : lead >= 0xC0 ? 1 : 0;
+  if (lead < 0xC0 || have < need) dest[i - 1] = '\0';  // stray or cut-off sequence
+}
+
 void copyField(char* dest, const char* src, const size_t capacity) {
   if (!src) src = "";
   strncpy(dest, src, capacity - 1);
   dest[capacity - 1] = '\0';
+  trimUtf8Tail(dest);
 }
 
 // ---- iCalendar streaming parser --------------------------------------------
@@ -160,6 +179,7 @@ class IcsParser {
       dest[n++] = *p;
     }
     dest[n] = '\0';
+    trimUtf8Tail(dest);
   }
 
   void resetEvent() {

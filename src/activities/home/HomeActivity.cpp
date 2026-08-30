@@ -128,9 +128,9 @@ void HomeActivity::onEnter() {
   selectorIndex = initialMenuItem == HomeMenuItem::NONE ? 0 : base + menuItemToIndex(initialMenuItem, hasOpdsServers);
 
   chooseWidgetBand();
-  // The widgets read these stores on the render task; load them here first so
-  // the initial SD reads don't race the first paint.
-  if (widgetBand > 0) READING_STATS.ensureLoaded();
+  // The widgets and the activity panel read these stores on the render task;
+  // load them here first so the initial SD reads don't race the first paint.
+  if (widgetBand > 0 || UITheme::getInstance().getMetrics().homeWidgetTiles) READING_STATS.ensureLoaded();
   if (widgetBand > 0 && HomeWidgets::showsWeather()) WEATHER.ensureLoaded();
   maybeAutoRefreshWeather();
 

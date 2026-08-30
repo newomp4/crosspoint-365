@@ -9,6 +9,7 @@ void PomodoroTimer::start(const uint16_t focusMinutes, const uint16_t breakMinut
   sessions = 0;
   endedPhase = Phase::Idle;
   paused = false;
+  lastActivityMs = millis();
   enterPhase(Phase::Focus);
   LOG_INF("POMO", "Started: %u min focus / %u min break", focusMinutes, breakMinutes);
 }
@@ -45,9 +46,18 @@ void PomodoroTimer::update() {
   if (currentPhase == Phase::Focus) {
     sessions++;
     enterPhase(Phase::Break);
-  } else {
-    enterPhase(Phase::Focus);
+    return;
   }
+  // Break over. If nothing was pressed for an entire focus+break cycle the
+  // session is abandoned: stop rather than cycle (and hold off auto-sleep)
+  // unattended forever.
+  const uint32_t cycleMs = (static_cast<uint32_t>(focusMin) + breakMin) * 60000UL;
+  if (millis() - lastActivityMs > cycleMs) {
+    LOG_INF("POMO", "No input for a full cycle; stopping abandoned session");
+    stop();
+    return;
+  }
+  enterPhase(Phase::Focus);
 }
 
 PomodoroTimer::Phase PomodoroTimer::consumePhaseEnd() {
