@@ -101,7 +101,8 @@ void CalendarRefreshActivity::render(RenderLock&&) {
       break;
     case SUCCESS:
       renderer.drawCenteredText(UI_12_FONT_ID, midY - 20, tr(STR_CAL_UPDATED_OK), true, EpdFontFamily::BOLD);
-      renderer.drawCenteredText(UI_10_FONT_ID, midY + 10, summary);
+      renderer.drawCenteredText(UI_10_FONT_ID, midY + 10,
+                                renderer.truncatedText(UI_10_FONT_ID, summary, pageWidth - 40).c_str());
       break;
     case NO_URL:
       renderer.drawCenteredText(UI_12_FONT_ID, midY - 20, tr(STR_CAL_NO_URL), true, EpdFontFamily::BOLD);
@@ -117,6 +118,9 @@ void CalendarRefreshActivity::render(RenderLock&&) {
       }
       break;
     }
+    case NO_WIFI:
+      renderer.drawCenteredText(UI_12_FONT_ID, midY - 20, tr(STR_CAL_NO_WIFI), true, EpdFontFamily::BOLD);
+      break;
     case FAILED:
       renderer.drawCenteredText(UI_12_FONT_ID, midY - 20, tr(STR_CAL_FAILED), true, EpdFontFamily::BOLD);
       renderer.drawCenteredText(UI_10_FONT_ID, midY + 10, tr(STR_CHECK_SERIAL_OUTPUT));

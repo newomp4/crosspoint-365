@@ -95,8 +95,15 @@ void CalendarScreen::render(GfxRenderer& renderer) {
   const int eventLh = renderer.getLineHeight(UI_12_FONT_ID);
   const int bottom = height - 24;
 
+  auto drawWrapped = [&](const int fontId, const char* text) {
+    for (const auto& line : renderer.wrappedText(fontId, text, width - 2 * SIDE, 3)) {
+      renderer.drawText(fontId, SIDE, y, line.c_str(), true);
+      y += renderer.getLineHeight(fontId);
+    }
+  };
+
   if (!CALENDAR.hasUrl()) {
-    renderer.drawText(UI_12_FONT_ID, SIDE, y, tr(STR_CAL_NO_URL), true);
+    drawWrapped(UI_12_FONT_ID, tr(STR_CAL_NO_URL));
     renderer.setOrientation(savedOrientation);
     renderer.displayBuffer(HalDisplay::HALF_REFRESH);
     return;
@@ -108,7 +115,7 @@ void CalendarScreen::render(GfxRenderer& renderer) {
   if (!CALENDAR.hasData()) {
     renderer.drawText(UI_12_FONT_ID, SIDE, y, tr(STR_CAL_NOT_FETCHED), true, EpdFontFamily::BOLD);
     y += eventLh + 4;
-    renderer.drawText(UI_10_FONT_ID, SIDE, y, tr(STR_CAL_FETCH_HINT), true);
+    drawWrapped(UI_10_FONT_ID, tr(STR_CAL_FETCH_HINT));
   } else {
     uint8_t next = 0;
     for (int d = 0; d < limitDays; d++) {

@@ -133,7 +133,8 @@ void WeatherRefreshActivity::render(RenderLock&&) {
       break;
     case SUCCESS:
       renderer.drawCenteredText(UI_12_FONT_ID, midY - 20, tr(STR_WEATHER_UPDATED), true, EpdFontFamily::BOLD);
-      renderer.drawCenteredText(UI_10_FONT_ID, midY + 10, summary);
+      renderer.drawCenteredText(UI_10_FONT_ID, midY + 10,
+                                renderer.truncatedText(UI_10_FONT_ID, summary, pageWidth - 40).c_str());
       break;
     case NO_LOCATION:
       renderer.drawCenteredText(UI_12_FONT_ID, midY - 20, tr(STR_WEATHER_NO_LOCATION), true, EpdFontFamily::BOLD);

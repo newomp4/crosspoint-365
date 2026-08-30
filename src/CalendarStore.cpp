@@ -451,14 +451,27 @@ CalendarStore::RefreshResult CalendarStore::refresh(const uint32_t nowEpoch, con
   memcpy(kept, events, sizeof(kept));
   count = 0;
 
-  IcsParser parser(*this, nowLocalMinute, windowEnd, utcOffsetMinutes);
+  bool ok = false;
   size_t received = 0;
-  const bool ok = HttpDownloader::fetchUrl(std::string(url), [&](const uint8_t* data, size_t len) {
-    parser.feed(data, len);
-    received += len;
-    return true;
-  });
-  parser.finish();
+  bool sawCalendar = false;
+  // Two attempts: DNS or a TLS handshake losing the race to a sleepy AP is a
+  // common transient, and the next scheduled attempt is far away.
+  for (int attempt = 0; attempt < 2 && (!ok || received == 0); ++attempt) {
+    if (attempt > 0) {
+      LOG_INF("CAL", "Fetch failed; retrying once");
+      delay(500);
+    }
+    count = 0;
+    received = 0;
+    IcsParser parser(*this, nowLocalMinute, windowEnd, utcOffsetMinutes);
+    ok = HttpDownloader::fetchUrl(std::string(url), [&](const uint8_t* data, size_t len) {
+      parser.feed(data, len);
+      received += len;
+      return true;
+    });
+    parser.finish();
+    sawCalendar = parser.sawCalendar;
+  }
   if (!ok || received == 0) {
     LOG_ERR("CAL", "Calendar fetch failed (%u bytes)", static_cast<unsigned>(received));
     memcpy(events, kept, sizeof(events));
@@ -466,7 +479,7 @@ CalendarStore::RefreshResult CalendarStore::refresh(const uint32_t nowEpoch, con
     saveToFile();
     return RefreshResult::FetchFailed;
   }
-  if (!parser.sawCalendar) {
+  if (!sawCalendar) {
     // The server answered, but not with a calendar: almost always a pasted
     // web-page link instead of the "secret address in iCal format".
     LOG_ERR("CAL", "Response is not an iCal feed (%u bytes)", static_cast<unsigned>(received));

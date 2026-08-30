@@ -62,9 +62,10 @@ void MonoTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
   }
   if (subtitle != nullptr && subtitle[0] != '\0') {
     const int lineHeight = renderer.getLineHeight(SMALL_FONT_ID);
-    const int width = renderer.getTextWidth(SMALL_FONT_ID, subtitle);
+    const std::string shown = renderer.truncatedText(SMALL_FONT_ID, subtitle, rect.width / 2 - side);
+    const int width = renderer.getTextWidth(SMALL_FONT_ID, shown.c_str());
     renderer.drawText(SMALL_FONT_ID, rect.x + rect.width - side - width, rect.y + rect.height - lineHeight - 10,
-                      subtitle, true);
+                      shown.c_str(), true);
   }
 }
 
