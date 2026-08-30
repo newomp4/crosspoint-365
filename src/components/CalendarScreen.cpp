@@ -129,18 +129,12 @@ void CalendarScreen::render(GfxRenderer& renderer) {
       renderer.drawText(SMALL_FONT_ID, SIDE, y, more, true);
       break;
     }
+    // Start time only: a start-end range does not fit TIME_COLUMN in the UI font.
     char timeText[24];
     if (e.allDay) {
       snprintf(timeText, sizeof(timeText), "%s", tr(STR_CAL_ALL_DAY));
     } else {
-      char start[12], end[12];
-      formatClock(e.startMinute, start, sizeof(start));
-      formatClock(e.endMinute(), end, sizeof(end));
-      if (e.durationMinutes > 0) {
-        snprintf(timeText, sizeof(timeText), "%s\xE2\x80\x93%s", start, end);  // en dash
-      } else {
-        snprintf(timeText, sizeof(timeText), "%s", start);
-      }
+      formatClock(e.startMinute, timeText, sizeof(timeText));
     }
     const bool now = !e.allDay && e.startMinute <= nowLocalMinute && e.endMinute() > nowLocalMinute;
     renderer.drawText(UI_10_FONT_ID, SIDE, y + (eventLh - dayLh) / 2, timeText, true,

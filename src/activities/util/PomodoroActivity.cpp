@@ -95,11 +95,12 @@ void PomodoroActivity::render(RenderLock&&) {
   char buf[40];
 
   // Phase label above the big time.
-  const char* phaseLabel = !active                                  ? tr(STR_POMO_FOCUS)
-                           : phase == PomodoroTimer::Phase::Focus   ? tr(STR_POMO_FOCUS)
-                                                                    : tr(STR_POMO_BREAK);
+  const char* phaseLabel = !active                                ? tr(STR_POMO_FOCUS)
+                           : phase == PomodoroTimer::Phase::Focus ? tr(STR_POMO_FOCUS)
+                                                                  : tr(STR_POMO_BREAK);
   const int centerY = pageHeight * 2 / 5;
-  renderer.drawCenteredText(UI_10_FONT_ID, centerY - 70, phaseLabel, true, EpdFontFamily::BOLD);
+  const int timeLineHeight = renderer.getLineHeight(GEIST_40_FONT_ID);
+  renderer.drawCenteredText(UI_10_FONT_ID, centerY - timeLineHeight - 26, phaseLabel, true, EpdFontFamily::BOLD);
 
   // Big countdown (running) or the configured focus length (idle).
   uint32_t shownSeconds;
@@ -111,12 +112,12 @@ void PomodoroActivity::render(RenderLock&&) {
   lastShownMinute = shownSeconds / 60;
   snprintf(buf, sizeof(buf), "%lu:%02lu", static_cast<unsigned long>(shownSeconds / 60),
            static_cast<unsigned long>(shownSeconds % 60));
-  renderer.drawCenteredText(GEIST_40_FONT_ID, centerY - 20, buf, true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(GEIST_40_FONT_ID, centerY - timeLineHeight, buf, true, EpdFontFamily::BOLD);
 
   // Progress track, filled by elapsed share of the phase.
   const int barWidth = std::min(pageWidth - 2 * metrics.contentSidePadding, 320);
   const int barX = (pageWidth - barWidth) / 2;
-  const int barY = centerY + 64;
+  const int barY = centerY + 24;
   renderer.fillRoundedRect(barX, barY, barWidth, 8, 4, Color::LightGray);
   if (active && POMODORO.phaseSeconds() > 0) {
     const uint32_t total = POMODORO.phaseSeconds();
@@ -145,9 +146,9 @@ void PomodoroActivity::render(RenderLock&&) {
     renderer.drawCenteredText(SMALL_FONT_ID, y, tr(STR_POMO_ADJUST_HINT));
   }
 
-  const char* confirmLabel = !active                       ? tr(STR_POMO_START)
-                             : POMODORO.isPaused()         ? tr(STR_POMO_RESUME)
-                                                           : tr(STR_POMO_PAUSE);
+  const char* confirmLabel = !active               ? tr(STR_POMO_START)
+                             : POMODORO.isPaused() ? tr(STR_POMO_RESUME)
+                                                   : tr(STR_POMO_PAUSE);
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), confirmLabel, active ? tr(STR_POMO_STOP) : "", "");
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 
