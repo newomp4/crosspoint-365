@@ -14,6 +14,7 @@ class HomeActivity final : public Activity {
   int selectorIndex = 0;
   bool recentsLoading = false;
   bool recentsLoaded = false;
+  bool coversNeedWork = false;
   bool firstRenderDone = false;
   bool hasOpdsServers = false;
   // Widget band above the cover tile: height chosen in render() so the menu

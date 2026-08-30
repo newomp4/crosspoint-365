@@ -11,7 +11,7 @@ class CalendarSettingsActivity final : public UiListActivity {
  public:
   CalendarSettingsActivity(GfxRenderer& renderer, MappedInputManager& mappedInput);
 
-  static constexpr int ITEM_COUNT = 4;
+  static constexpr int ITEM_COUNT = 5;
 
   void onEnter() override;
   void render(RenderLock&&) override;

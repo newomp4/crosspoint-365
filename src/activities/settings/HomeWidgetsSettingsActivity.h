@@ -20,6 +20,7 @@ class HomeWidgetsSettingsActivity final : public UiListActivity {
   OptionPopup optionPopup;
 
   int listCount() const override { return ITEM_COUNT; }
+  void drawFooter() override;
   const char* headerTitle() const override;
   void buildScreen(UiScreen& screen) override;
   void activateIndex(int index) override;

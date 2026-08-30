@@ -7,9 +7,11 @@
 #include <string>
 
 #include "MappedInputManager.h"
+#include "ReadingStats.h"
 #include "WeatherRefreshActivity.h"
 #include "WeatherStore.h"
 #include "activities/util/KeyboardEntryActivity.h"
+#include "components/HomeWidgets.h"
 #include "components/UITheme.h"
 
 namespace fui = freeink::ui;
@@ -69,6 +71,7 @@ HomeWidgetsSettingsActivity::HomeWidgetsSettingsActivity(GfxRenderer& renderer, 
 void HomeWidgetsSettingsActivity::onEnter() {
   UiListActivity::onEnter();
   WEATHER.ensureLoaded();
+  READING_STATS.ensureLoaded();  // the live band preview reads the stats
   for (int i = 0; i < ITEM_COUNT; i++) {
     rowItems_[i].label = I18N.get(menuNames[i]);
     rowItems_[i].actionValue = static_cast<int16_t>(i);
@@ -162,8 +165,10 @@ std::string HomeWidgetsSettingsActivity::rowValueText(const int index) const {
 
 void HomeWidgetsSettingsActivity::buildScreen(UiScreen& screen) {
   const auto& metrics = UITheme::getInstance().getMetrics();
+  // Reserve the strip above the hints for the live preview of the band.
+  const int previewReserve = HomeWidgets::slotCount() > 0 ? HomeWidgets::bandHeight(renderer, false) + 16 : 0;
   screen.setContentMargin(fui::Insets{static_cast<int16_t>(metrics.topPadding + metrics.headerHeight), 0,
-                                      static_cast<int16_t>(metrics.buttonHintsHeight), 0});
+                                      static_cast<int16_t>(metrics.buttonHintsHeight + previewReserve), 0});
   screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
 
   for (int i = 0; i < ITEM_COUNT; i++) {
@@ -181,6 +186,17 @@ void HomeWidgetsSettingsActivity::buildScreen(UiScreen& screen) {
   props.labelText.maxLines = 2;
   syncListViewport(screen, props);
   screen.list(props);
+}
+
+// The exact widget band the home screen will draw, live under the list: pick
+// a different slot and the strip repaints with it.
+void HomeWidgetsSettingsActivity::drawFooter() {
+  UiListActivity::drawFooter();
+  if (HomeWidgets::slotCount() == 0) return;
+  const auto& metrics = UITheme::getInstance().getMetrics();
+  const int bandHeight = HomeWidgets::bandHeight(renderer, false);
+  const int top = renderer.getScreenHeight() - metrics.buttonHintsHeight - bandHeight - 8;
+  HomeWidgets::draw(renderer, Rect{0, top, renderer.getScreenWidth(), bandHeight}, false);
 }
 
 void HomeWidgetsSettingsActivity::render(RenderLock&& lock) {

@@ -103,12 +103,16 @@ void BaseTheme::drawBatteryLeft(const GfxRenderer& renderer, Rect rect, const bo
   const uint16_t percentage = powerManager.getBatteryPercentage();
   const int y = rect.y + 6;
 
+  const bool pill = UITheme::getInstance().getMetrics().batteryPill;
   if (showPercentage) {
     const auto percentageText = std::to_string(percentage) + "%";
-    renderer.drawText(SMALL_FONT_ID, rect.x + batteryPercentSpacing + rect.width, rect.y, percentageText.c_str());
+    const int fontId = pill ? UI_10_FONT_ID : SMALL_FONT_ID;
+    const int textY = pill ? rect.y + 6 + (rect.height - renderer.getLineHeight(fontId)) / 2 : rect.y;
+    renderer.drawText(fontId, rect.x + batteryPercentSpacing + rect.width, textY, percentageText.c_str(), true,
+                      pill ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
   }
 
-  if (UITheme::getInstance().getMetrics().batteryPill) {
+  if (pill) {
     // Same rounded fill-bar treatment as the pill header battery. Charging
     // dithers the remainder instead of drawing a bolt.
     const int h = std::max(6, static_cast<int>(rect.height) - 2);
@@ -377,10 +381,15 @@ void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
   battery.gap = batteryPercentSpacing;
   if (metrics.batteryPill) {
     // Rounded fill bar on a dithered track; charging shows as a dithered fill
-    // (the component's no-icon charging treatment).
+    // (the component's no-icon charging treatment). The percent label steps up
+    // to the body font so it reads at arm's length.
     battery.style = fui::BatteryIndicatorStyle::Bar;
     battery.barTrack = fui::BatteryBarTrack::Dither;
     battery.barRadius = static_cast<uint8_t>(metrics.batteryHeight / 2);
+    battery.text = tokens.smallText;
+    battery.text.font = fui::GfxRendererTarget::FONT_BODY;
+    battery.text.bold = true;
+    battery.gap = 7;
   }
   // Detached: hug the corner (12px, the legacy inset) within the battery
   // strip; shared line: sit on the content grid. Both anchor to the band's top

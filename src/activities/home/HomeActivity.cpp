@@ -127,6 +127,18 @@ void HomeActivity::onEnter() {
   const auto base = static_cast<int>(recentBooks.size());
   selectorIndex = initialMenuItem == HomeMenuItem::NONE ? 0 : base + menuItemToIndex(initialMenuItem, hasOpdsServers);
 
+  // The second render pass exists only to generate missing cover thumbs (a
+  // blocking job that must run after something is on screen). When every
+  // cover is already cached — the common case — one paint is enough.
+  coversNeedWork = false;
+  for (const RecentBook& book : recentBooks) {
+    if (!book.coverBmpPath.empty() &&
+        !Storage.exists(UITheme::getCoverThumbPath(book.coverBmpPath, metrics.homeCoverHeight).c_str())) {
+      coversNeedWork = true;
+      break;
+    }
+  }
+
   chooseWidgetBand();
   // The widgets and the activity panel read these stores on the render task;
   // load them here first so the initial SD reads don't race the first paint.
@@ -180,10 +192,14 @@ void HomeActivity::chooseWidgetBand() {
 void HomeActivity::maybeAutoRefreshWeather() {
   if (weatherAutoTried) return;
   weatherAutoTried = true;
-  if (SETTINGS.weatherAutoRefresh != CrossPointSettings::WEATHER_REFRESH_ON_WAKE) return;
   if (!HomeWidgets::showsWeather() || WIFI_STORE.getCredentialCount() == 0) return;
   WEATHER.ensureLoaded();
+  // shouldAutoRefresh carries the staleness + attempt throttle; on top of it,
+  // a configured location with no data at all bootstraps its first fetch
+  // regardless of the auto-refresh setting — otherwise the widget sits on
+  // "no data yet" until the user finds the manual refresh.
   if (!WEATHER.shouldAutoRefresh(halClock.getEpochSeconds())) return;
+  if (WEATHER.hasData() && SETTINGS.weatherAutoRefresh != CrossPointSettings::WEATHER_REFRESH_ON_WAKE) return;
   startActivityForResult(std::make_unique<WeatherRefreshActivity>(renderer, mappedInput, /*silent=*/true), nullptr);
 }
 
@@ -449,7 +465,11 @@ void HomeActivity::render(RenderLock&&) {
 
   if (!firstRenderDone) {
     firstRenderDone = true;
-    requestUpdate();
+    if (coversNeedWork) {
+      requestUpdate();
+    } else {
+      recentsLoaded = true;
+    }
   } else if (!recentsLoaded && !recentsLoading) {
     recentsLoading = true;
     loadRecentCovers(metrics.homeCoverHeight);

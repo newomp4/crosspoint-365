@@ -30,8 +30,10 @@ class HalPowerManager {
 #else
   static constexpr int LOW_POWER_FREQ = 10;  // MHz
 #endif
-  static constexpr unsigned long IDLE_POWER_SAVING_MS = 3000;  // ms
-  static constexpr unsigned long BATTERY_POLL_MS = 1500;       // ms
+  // Long enough that UI navigation never runs downclocked (the C3 drops to
+  // 10 MHz); reading pauses still downclock well before the page turn.
+  static constexpr unsigned long IDLE_POWER_SAVING_MS = 20000;  // ms
+  static constexpr unsigned long BATTERY_POLL_MS = 1500;        // ms
 
   void begin();
 

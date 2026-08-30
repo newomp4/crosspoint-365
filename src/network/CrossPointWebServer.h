@@ -136,6 +136,9 @@ class CrossPointWebServer {
   void handleDeleteOpdsServer();
 
   // Wi-Fi credential handlers
+  void handleCalendarPage() const;
+  void handleGetCalendar() const;
+  void handlePostCalendar();
   void handleGetWifiNetworks() const;
   void handlePostWifiNetwork();
   void handleDeleteWifiNetwork();

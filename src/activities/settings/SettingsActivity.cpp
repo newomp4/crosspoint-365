@@ -24,6 +24,7 @@
 #include "SdCardFontSystem.h"
 #include "SdFirmwareUpdateActivity.h"
 #include "SettingsList.h"
+#include "SleepScreenPickerActivity.h"
 #include "StatusBarSettingsActivity.h"
 #include "TextSettingsActivity.h"
 #include "UiFont.h"
@@ -70,6 +71,7 @@ void SettingsActivity::rebuildSettingsLists() {
       // The dot-grid sleep screens get their editor right under the mode that
       // selects them, and only while it is selected.
       if (setting.valuePtr == &CrossPointSettings::sleepScreen) {
+        displaySettings.push_back(SettingInfo::Action(StrId::STR_SLEEP_PREVIEW, SettingAction::SleepPreview));
         if (SETTINGS.sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::YEAR_PROGRESS) {
           displaySettings.push_back(
               SettingInfo::Action(StrId::STR_YEAR_PROGRESS_SETTINGS, SettingAction::YearProgress));
@@ -411,6 +413,9 @@ void SettingsActivity::toggleCurrentSetting() {
         break;
       case SettingAction::CalendarSettings:
         startActivityForResult(std::make_unique<CalendarSettingsActivity>(renderer, mappedInput), resultHandler);
+        break;
+      case SettingAction::SleepPreview:
+        startActivityForResult(std::make_unique<SleepScreenPickerActivity>(renderer, mappedInput), resultHandler);
         break;
       case SettingAction::None:
         // Do nothing

@@ -3,12 +3,14 @@
 #include <GfxRenderer.h>
 #include <I18n.h>
 
+#include <cstring>
 #include <memory>
 #include <string>
 
 #include "CalendarRefreshActivity.h"
 #include "CalendarStore.h"
 #include "MappedInputManager.h"
+#include "activities/ActivityManager.h"
 #include "activities/util/KeyboardEntryActivity.h"
 #include "components/UITheme.h"
 
@@ -17,11 +19,11 @@ namespace fui = freeink::ui;
 namespace {
 using S = CrossPointSettings;
 
-enum MenuItem { ITEM_URL = 0, ITEM_DAYS, ITEM_SLEEP_REFRESH, ITEM_REFRESH_NOW, ITEM_COUNT };
+enum MenuItem { ITEM_BROWSER = 0, ITEM_URL, ITEM_DAYS, ITEM_SLEEP_REFRESH, ITEM_REFRESH_NOW, ITEM_COUNT };
 static_assert(ITEM_COUNT == CalendarSettingsActivity::ITEM_COUNT, "keep ITEM_COUNT in sync");
 
-constexpr StrId menuNames[ITEM_COUNT] = {StrId::STR_CAL_FEED_URL, StrId::STR_CAL_DAYS, StrId::STR_CAL_SLEEP_REFRESH,
-                                         StrId::STR_CAL_REFRESH_NOW};
+constexpr StrId menuNames[ITEM_COUNT] = {StrId::STR_CAL_BROWSER_SETUP, StrId::STR_CAL_FEED_URL, StrId::STR_CAL_DAYS,
+                                         StrId::STR_CAL_SLEEP_REFRESH, StrId::STR_CAL_REFRESH_NOW};
 constexpr StrId dayNames[S::CAL_DAYS_COUNT] = {StrId::STR_CAL_DAYS_1, StrId::STR_CAL_DAYS_3, StrId::STR_CAL_DAYS_7};
 constexpr StrId refreshNames[S::CAL_SLEEP_REFRESH_COUNT] = {StrId::STR_STATE_OFF, StrId::STR_CAL_REFRESH_10M,
                                                             StrId::STR_CAL_REFRESH_30M, StrId::STR_CAL_REFRESH_1H};
@@ -74,6 +76,11 @@ void CalendarSettingsActivity::editUrl() {
 
 void CalendarSettingsActivity::handleSelection(const int index) {
   switch (index) {
+    case ITEM_BROWSER:
+      // The File Transfer web page hosts /calendar: pasting the long secret
+      // address in a browser beats typing it on the on-screen keyboard.
+      activityManager.goToFileTransfer();
+      break;
     case ITEM_URL:
       editUrl();
       break;
@@ -102,8 +109,19 @@ void CalendarSettingsActivity::handleSelection(const int index) {
 
 std::string CalendarSettingsActivity::rowValueText(const int index) const {
   switch (index) {
-    case ITEM_URL:
-      return CALENDAR.hasUrl() ? tr(STR_STATE_ON) : tr(STR_NOT_SET);
+    case ITEM_BROWSER:
+      return "";
+    case ITEM_URL: {
+      if (!CALENDAR.hasUrl()) return tr(STR_NOT_SET);
+      // Show the feed's host so the row confirms *which* calendar is linked.
+      const char* url = CALENDAR.feedUrl();
+      const char* start = strstr(url, "://");
+      start = start ? start + 3 : url;
+      const char* end = strchr(start, '/');
+      std::string host = end ? std::string(start, end) : std::string(start);
+      if (host.size() > 24) host = host.substr(0, 23) + "\xE2\x80\xA6";
+      return host;
+    }
     case ITEM_DAYS:
       return I18N.get(dayNames[daysToChoice(SETTINGS.calendarDays)]);
     case ITEM_SLEEP_REFRESH:

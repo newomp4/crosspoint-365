@@ -6,8 +6,8 @@
 // light-gray cards with generous radii, widget tiles, and a one-row icon tab
 // bar for the home menu. Night mode inverts it into the dark version.
 namespace MonoMetrics {
-constexpr ThemeMetrics values = {.batteryWidth = 26,
-                                 .batteryHeight = 10,
+constexpr ThemeMetrics values = {.batteryWidth = 32,
+                                 .batteryHeight = 14,
                                  .topPadding = 5,
                                  .batteryBarHeight = 34,
                                  .headerHeight = 96,
@@ -15,12 +15,12 @@ constexpr ThemeMetrics values = {.batteryWidth = 26,
                                  .previewPadding = 12,
                                  .previewHeightPercent = 30,
                                  .contentSidePadding = 20,
-                                 .listRowHeight = 44,
-                                 .listWithSubtitleRowHeight = 64,
-                                 .listRowGap = 4,
-                                 .listRowRadius = 12,
+                                 .listRowHeight = 48,
+                                 .listWithSubtitleRowHeight = 68,
+                                 .listRowGap = 6,
+                                 .listRowRadius = 14,
                                  .listInset = 16,
-                                 .listSidePadding = 14,
+                                 .listSidePadding = 16,
                                  .listSelectionStyle = 1,  // light pill
                                  .listScrollWidth = 4,
                                  .listScrollSide = 0,

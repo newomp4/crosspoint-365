@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cctype>
 
+#include "CalendarStore.h"
 #include "CrossPointSettings.h"
 #include "FontInstaller.h"
 #include "OpdsServerStore.h"
@@ -20,6 +21,7 @@
 #include "SettingsList.h"
 #include "WebDAVHandler.h"
 #include "WifiCredentialStore.h"
+#include "html/CalendarPageHtml.generated.h"
 #include "html/FilesPageHtml.generated.h"
 #include "html/FontsPageHtml.generated.h"
 #include "html/HomePageHtml.generated.h"
@@ -165,6 +167,9 @@ void CrossPointWebServer::begin() {
 
   // Settings endpoints
   server->on("/settings", HTTP_GET, [this] { handleSettingsPage(); });
+  server->on("/calendar", HTTP_GET, [this] { handleCalendarPage(); });
+  server->on("/api/calendar", HTTP_GET, [this] { handleGetCalendar(); });
+  server->on("/api/calendar", HTTP_POST, [this] { handlePostCalendar(); });
   server->on("/api/settings", HTTP_GET, [this] { handleGetSettings(); });
   server->on("/api/settings", HTTP_POST, [this] { handlePostSettings(); });
 
@@ -1154,6 +1159,37 @@ void CrossPointWebServer::handleDelete() const {
 void CrossPointWebServer::handleSettingsPage() const {
   sendHtmlContent(server.get(), SettingsPageHtml, sizeof(SettingsPageHtml));
   LOG_DBG("WEB", "Served settings page");
+}
+
+void CrossPointWebServer::handleCalendarPage() const {
+  sendHtmlContent(server.get(), CalendarPageHtml, sizeof(CalendarPageHtml));
+  LOG_DBG("WEB", "Served calendar page");
+}
+
+void CrossPointWebServer::handleGetCalendar() const {
+  CALENDAR.ensureLoaded();
+  JsonDocument doc;
+  doc["url"] = CALENDAR.feedUrl();
+  doc["events"] = CALENDAR.eventCount();
+  doc["fetchedAt"] = CALENDAR.fetchedAtEpoch();
+  std::string out;
+  serializeJson(doc, out);
+  server->send(200, "application/json", out.c_str());
+}
+
+void CrossPointWebServer::handlePostCalendar() {
+  if (!server->hasArg("url")) {
+    server->send(400, "text/plain", "missing url");
+    return;
+  }
+  const String url = server->arg("url");
+  if (url.length() >= CalendarStore::URL_LEN) {
+    server->send(400, "text/plain", "url too long");
+    return;
+  }
+  CALENDAR.setFeedUrl(url.c_str());
+  LOG_INF("WEB", "Calendar URL %s via web", url.length() ? "set" : "cleared");
+  server->send(200, "text/plain", "ok");
 }
 
 void CrossPointWebServer::handleGetSettings() const {
