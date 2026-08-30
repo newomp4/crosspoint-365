@@ -415,7 +415,17 @@ void SettingsActivity::toggleCurrentSetting() {
         startActivityForResult(std::make_unique<CalendarSettingsActivity>(renderer, mappedInput), resultHandler);
         break;
       case SettingAction::SleepPreview:
-        startActivityForResult(std::make_unique<SleepScreenPickerActivity>(renderer, mappedInput), resultHandler);
+        // The picker edits sleepScreen directly: run the same follow-ups the
+        // enum row runs — quick-resume timeout coupling and the rebuild that
+        // surfaces the mode's conditional editor row.
+        startActivityForResult(std::make_unique<SleepScreenPickerActivity>(renderer, mappedInput),
+                               [this](const ActivityResult&) {
+                                 syncQuickResumeTimeoutForSleepScreen(/*sleepScreenChanged=*/true,
+                                                                      /*quickResumeTimeoutChanged=*/false);
+                                 SETTINGS.saveToFile();
+                                 rebuildSettingsLists();
+                                 requestUpdate();
+                               });
         break;
       case SettingAction::None:
         // Do nothing

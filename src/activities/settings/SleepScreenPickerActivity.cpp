@@ -7,8 +7,10 @@
 #include <algorithm>
 #include <cstdio>
 
+#include "CalendarStore.h"
 #include "CrossPointSettings.h"
 #include "MappedInputManager.h"
+#include "ReadingStats.h"
 #include "components/CalendarScreen.h"
 #include "components/DotsScreen.h"
 #include "components/UITheme.h"
@@ -21,14 +23,18 @@ using S = CrossPointSettings;
 constexpr int MODE_COUNT = S::SLEEP_SCREEN_MODE_COUNT;
 
 constexpr StrId MODE_NAMES[MODE_COUNT] = {
-    StrId::STR_DARK,         StrId::STR_LIGHT,        StrId::STR_CUSTOM,        StrId::STR_COVER,
-    StrId::STR_COVER_CUSTOM, StrId::STR_NONE_OPT,     StrId::STR_QUICK_RESUME,  StrId::STR_TRANSPARENT,
+    StrId::STR_DARK,          StrId::STR_LIGHT,           StrId::STR_CUSTOM,       StrId::STR_COVER,
+    StrId::STR_COVER_CUSTOM,  StrId::STR_NONE_OPT,        StrId::STR_QUICK_RESUME, StrId::STR_TRANSPARENT,
     StrId::STR_YEAR_PROGRESS, StrId::STR_READING_HEATMAP, StrId::STR_CALENDAR,
 };
 }  // namespace
 
 void SleepScreenPickerActivity::onEnter() {
   Activity::onEnter();
+  // The calendar and heatmap previews read these stores on the render task;
+  // first-touch them here so the SD reads happen on the main task.
+  CALENDAR.ensureLoaded();
+  READING_STATS.ensureLoaded();
   index = SETTINGS.sleepScreen < MODE_COUNT ? SETTINGS.sleepScreen : 0;
   requestUpdate();
 }
@@ -50,7 +56,8 @@ void SleepScreenPickerActivity::loop() {
     requestUpdate();
     return;
   }
-  if (mappedInput.wasPressed(MappedInputManager::Button::Left) || mappedInput.wasPressed(MappedInputManager::Button::Up)) {
+  if (mappedInput.wasPressed(MappedInputManager::Button::Left) ||
+      mappedInput.wasPressed(MappedInputManager::Button::Up)) {
     index = ButtonNavigator::previousIndex(index, MODE_COUNT);
     requestUpdate();
   }
@@ -125,12 +132,10 @@ void SleepScreenPickerActivity::render(RenderLock&&) {
     case S::YEAR_PROGRESS:
       DotsScreen::render(renderer, DotsScreen::Kind::YearProgress, CalendarDate::today());
       selfDisplayed = true;
-      onDark = SETTINGS.dotsBackground == S::DOTS_BG_BLACK;
       break;
     case S::READING_HEATMAP:
       DotsScreen::render(renderer, DotsScreen::Kind::ReadingHeatmap, CalendarDate::today());
       selfDisplayed = true;
-      onDark = SETTINGS.dotsBackground == S::DOTS_BG_BLACK;
       break;
     case S::CALENDAR_VIEW:
       CalendarScreen::render(renderer);
@@ -154,9 +159,13 @@ void SleepScreenPickerActivity::render(RenderLock&&) {
       break;
   }
 
+  // The dot screens' grayscale pipeline leaves a gray *plane* in the
+  // framebuffer, not the visible image — a chip pass over it would repaint
+  // the panel with garbage. They show chipless (unmistakable anyway); the
+  // calendar preview's BW pass keeps the buffer intact, so it gets the chip
+  // as a quick partial on top.
+  if (index == S::YEAR_PROGRESS || index == S::READING_HEATMAP) return;
   drawChip(onDark);
-  // Self-displaying previews already ran their full-quality pass; the chip
-  // lands with a quick partial. Everything else is one paint.
   renderer.displayBuffer(HalDisplay::FAST_REFRESH);
   (void)selfDisplayed;
 }

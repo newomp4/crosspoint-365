@@ -64,12 +64,16 @@ void CalendarSettingsActivity::activateIndex(const int index) {
 }
 
 void CalendarSettingsActivity::editUrl() {
+  // Opens empty on purpose: a saved secret address wraps to five-plus lines
+  // and runs into the keys. Typing replaces the old link; the browser page is
+  // the place to see or tweak the saved one.
   startActivityForResult(
-      std::make_unique<KeyboardEntryActivity>(renderer, mappedInput, tr(STR_CAL_ENTER_URL), CALENDAR.feedUrl(),
+      std::make_unique<KeyboardEntryActivity>(renderer, mappedInput, tr(STR_CAL_ENTER_URL), "",
                                               CalendarStore::URL_LEN - 1, InputType::Text),
       [](const ActivityResult& result) {
         if (result.isCancelled) return;
         const auto& kb = std::get<KeyboardResult>(result.data);
+        if (kb.text.empty()) return;  // empty confirm keeps the saved link
         CALENDAR.setFeedUrl(kb.text.c_str());
       });
 }

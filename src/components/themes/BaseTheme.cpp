@@ -320,9 +320,14 @@ void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
   constexpr int16_t batteryNubWidth = 2;
   int16_t batteryReserve = static_cast<int16_t>(metrics.batteryWidth + batteryNubWidth);
   if (showBatteryPercentage) {
-    batteryReserve = static_cast<int16_t>(
-        batteryReserve + batteryPercentSpacing +
-        ui.target.measureText(fui::GfxRendererTarget::FONT_SMALL, percentText, tokens.smallText).width);
+    // The pill label draws in the body font (see below); the reserve must be
+    // measured with the same font or the label rect comes up short.
+    const auto labelFont = metrics.batteryPill ? fui::GfxRendererTarget::FONT_BODY : fui::GfxRendererTarget::FONT_SMALL;
+    fui::TextStyle labelStyle = tokens.smallText;
+    if (metrics.batteryPill) labelStyle.bold = true;
+    const int16_t labelGap = metrics.batteryPill ? 7 : batteryPercentSpacing;
+    batteryReserve = static_cast<int16_t>(batteryReserve + labelGap +
+                                          ui.target.measureText(labelFont, percentText, labelStyle).width);
   }
 
   fui::HeaderProps props;
@@ -827,9 +832,11 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
 
     if (showBatteryPercentage) {
       const uint16_t percentage = powerManager.getBatteryPercentage();
-      // width of icon + spacing + text for layout purposes
+      // width of icon + spacing + text for layout purposes; the pill draws its
+      // percent in UI_10, so measure with the same font.
+      const int percentFontId = metrics.batteryPill ? UI_10_FONT_ID : SMALL_FONT_ID;
       batteryWidth +=
-          batteryPercentSpacing + renderer.getTextWidth(SMALL_FONT_ID, (std::to_string(percentage) + "%").c_str());
+          batteryPercentSpacing + renderer.getTextWidth(percentFontId, (std::to_string(percentage) + "%").c_str());
     }
 
     leftClusterWidth += batteryWidth;
