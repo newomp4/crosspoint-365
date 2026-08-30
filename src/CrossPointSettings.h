@@ -24,6 +24,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     TRANSPARENT_CUSTOM = 7,
     YEAR_PROGRESS = 8,
     READING_HEATMAP = 9,
+    CALENDAR_VIEW = 10,
     SLEEP_SCREEN_MODE_COUNT
   };
   enum SLEEP_SCREEN_COVER_MODE { FIT = 0, CROP = 1, SLEEP_SCREEN_COVER_MODE_COUNT };
@@ -168,7 +169,9 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   };
 
   // UI Theme
-  enum UI_THEME { CLASSIC = 0, LYRA = 1, LYRA_3_COVERS = 2, ROUNDEDRAFF = 3 };
+  enum UI_THEME { CLASSIC = 0, LYRA = 1, LYRA_3_COVERS = 2, ROUNDEDRAFF = 3, MONO = 4 };
+  // Typeface behind every UI font slot (menus, lists, headers, hints).
+  enum UI_FONT { UI_FONT_GEIST = 0, UI_FONT_UBUNTU = 1, UI_FONT_COUNT };
 
   // Image rendering in EPUB reader
   enum IMAGE_RENDERING { IMAGES_DISPLAY = 0, IMAGES_PLACEHOLDER = 1, IMAGES_SUPPRESS = 2, IMAGE_RENDERING_COUNT };
@@ -288,6 +291,19 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // up anyway. On wake: also bring Wi-Fi up at boot when the data is old.
   enum WEATHER_AUTO_REFRESH { WEATHER_REFRESH_MANUAL = 0, WEATHER_REFRESH_ON_WAKE = 1, WEATHER_AUTO_REFRESH_COUNT };
 
+  // Calendar sleep screen: how many upcoming days to list.
+  enum CAL_DAYS { CAL_DAYS_TODAY = 0, CAL_DAYS_3 = 1, CAL_DAYS_WEEK = 2, CAL_DAYS_COUNT };
+  // Refresh cadence while the Calendar sleep screen is up. Anything but Off
+  // holds the device in timed light sleep (the X3 cuts battery power in deep
+  // sleep, so a deep-sleep timer could never fire) and re-fetches on schedule.
+  enum CAL_SLEEP_REFRESH {
+    CAL_REFRESH_OFF = 0,
+    CAL_REFRESH_10M = 1,
+    CAL_REFRESH_30M = 2,
+    CAL_REFRESH_1H = 3,
+    CAL_SLEEP_REFRESH_COUNT
+  };
+
   enum HEAT_TEXT {
     HEAT_TEXT_NONE = 0,
     HEAT_TEXT_TOTAL_TIME = 1,
@@ -381,7 +397,11 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // Defaults to Disabled so shortcut-based bookmark toggling remains opt-in.
   uint8_t longPressMenuFunction = LP_MENU_DISABLED;
   // UI Theme
-  uint8_t uiTheme = LYRA;
+  uint8_t uiTheme = MONO;
+  uint8_t uiFont = UI_FONT_GEIST;
+  // Settings files written before this fork carry uiTheme=Lyra by default;
+  // the first load switches them to Mono once (see fromJson).
+  uint8_t forkThemeMigrated = 0;
   // Sunlight fading compensation
   uint8_t fadingFix = 0;
   // Power button return from footnotes (1 = enabled, 0 = disabled)
@@ -473,6 +493,12 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t homeWidget4 = HW_NONE;
   uint8_t weatherUnit = WEATHER_CELSIUS;
   uint8_t weatherAutoRefresh = WEATHER_REFRESH_MANUAL;
+  // Calendar sleep screen: upcoming days listed (real day count, 1..7).
+  uint8_t calendarDays = 3;
+  uint8_t calendarSleepRefresh = CAL_REFRESH_10M;
+  // Pomodoro lengths in minutes, edited inside the Focus Timer activity.
+  uint8_t pomodoroFocusMin = 25;
+  uint8_t pomodoroBreakMin = 5;
 
   static constexpr uint8_t MIN_SLEEP_TIMEOUT_MINUTES = 1;
   static constexpr uint8_t SLEEP_TIMEOUT_NEVER_MINUTES = 31;

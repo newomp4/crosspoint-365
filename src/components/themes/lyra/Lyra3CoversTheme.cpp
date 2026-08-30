@@ -9,7 +9,7 @@
 
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
-#include "components/icons/cover.h"
+#include "components/icons/menuIcons.h"
 #include "fontIds.h"
 
 // Internal constants

@@ -14,7 +14,6 @@
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
 #include "components/UIThemeTokens.h"
-#include "components/icons/customListIcons.h"
 #include "components/icons/listIcons.h"
 
 namespace fui = freeink::ui;

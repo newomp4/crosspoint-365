@@ -16,7 +16,7 @@
 #include "activities/util/KeyboardEntryActivity.h"
 #include "components/UIScale.h"
 #include "components/UITheme.h"
-#include "components/icons/search32.h"
+#include "components/icons/listIcons.h"
 #include "fontIds.h"
 #include "network/HttpDownloader.h"
 #include "util/BookCacheUtils.h"

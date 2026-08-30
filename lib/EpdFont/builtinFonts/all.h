@@ -38,6 +38,14 @@
 #include <builtinFonts/ubuntu_12_bold.h>
 #include <builtinFonts/ubuntu_12_medium.h>
 
+// Geist UI family (Settings > Display > UI Font).
+#include <builtinFonts/geist_ui_8_medium.h>
+#include <builtinFonts/geist_ui_10_bold.h>
+#include <builtinFonts/geist_ui_10_semibold.h>
+#include <builtinFonts/geist_ui_12_bold.h>
+#include <builtinFonts/geist_ui_12_semibold.h>
+#include <builtinFonts/geist_ui_18_bold.h>
+
 // Year Progress / Reading Heatmap sleep screens. The Helvetica Neue headers
 // are local-only (proprietary font); scripts/ensure_dots_fonts.py writes Geist
 // fallbacks when they are missing.

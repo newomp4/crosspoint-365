@@ -18,9 +18,19 @@
 #define GEIST_14_FONT_ID (-1949064626)
 #define GEIST_24_FONT_ID (1170080954)
 #define GEIST_40_FONT_ID (-1166822798)
+#define GEIST_UI_8_FONT_ID (-1701199218)
+#define GEIST_UI_10_FONT_ID (-429092696)
+#define GEIST_UI_12_FONT_ID (-843577019)
+#define GEIST_UI_18_FONT_ID (-752739597)
+#define UI_TITLE_FONT_ID (-752739590)
 
 // Font ID 0 is reserved as the "not found" sentinel.
 // Guard against any hash accidentally producing 0.
+static_assert(GEIST_UI_8_FONT_ID != 0, "Font ID collision with sentinel");
+static_assert(GEIST_UI_10_FONT_ID != 0, "Font ID collision with sentinel");
+static_assert(GEIST_UI_12_FONT_ID != 0, "Font ID collision with sentinel");
+static_assert(GEIST_UI_18_FONT_ID != 0, "Font ID collision with sentinel");
+static_assert(UI_TITLE_FONT_ID != 0, "Font ID collision with sentinel");
 static_assert(NOTOSERIF_12_FONT_ID != 0, "Font ID collision with sentinel");
 static_assert(NOTOSERIF_14_FONT_ID != 0, "Font ID collision with sentinel");
 static_assert(NOTOSERIF_16_FONT_ID != 0, "Font ID collision with sentinel");

@@ -30,6 +30,9 @@ constexpr int ICON_GAP = 10;
 constexpr int SLOT_GAP = 8;
 constexpr int PAD_Y = 6;
 constexpr int CAPTION_GAP = 2;
+constexpr int TILE_PAD = 12;
+constexpr int TILE_GAP = 10;
+constexpr int TILE_RADIUS = 14;
 
 constexpr StrId WEEKDAY_SHORT[7] = {StrId::STR_WDS_SUN, StrId::STR_WDS_MON, StrId::STR_WDS_TUE, StrId::STR_WDS_WED,
                                     StrId::STR_WDS_THU, StrId::STR_WDS_FRI, StrId::STR_WDS_SAT};
@@ -251,16 +254,83 @@ std::string fitCaption(const GfxRenderer& renderer, const Content& c, const int 
   if (c.captionShort[0] && renderer.getTextWidth(CAPTION_FONT, c.captionShort) <= width) return c.captionShort;
   return renderer.truncatedText(CAPTION_FONT, c.caption, width);
 }
+
+int tileHeight(const GfxRenderer& renderer, const bool compact) {
+  const int valueLine = std::max(renderer.getLineHeight(VALUE_FONT), ICON_SIZE);
+  if (compact) return TILE_PAD + valueLine + TILE_PAD;
+  return TILE_PAD + valueLine + CAPTION_GAP + renderer.getLineHeight(CAPTION_FONT) + TILE_PAD;
+}
+
+bool tileStyle() { return UITheme::getInstance().getMetrics().homeWidgetTiles; }
+
+void drawTiles(const GfxRenderer& renderer, const Rect& band, const bool compact, const int n,
+               const CalendarDate& date) {
+  const int side = UITheme::getInstance().getMetrics().contentSidePadding;
+  const int rows = (n + 1) / 2;
+  const int tileH = tileHeight(renderer, compact);
+  const int fullWidth = band.width - 2 * side;
+  const int halfWidth = (fullWidth - TILE_GAP) / 2;
+  const int valueLine = std::max(renderer.getLineHeight(VALUE_FONT), ICON_SIZE);
+  const int valueOffset = TILE_PAD + (valueLine - renderer.getLineHeight(VALUE_FONT)) / 2;
+  const int iconOffset = TILE_PAD + (valueLine - ICON_SIZE) / 2;
+  const int captionOffset = TILE_PAD + valueLine + CAPTION_GAP;
+
+  int slot = 0;
+  for (int i = 0; i < CrossPointSettings::HOME_WIDGET_SLOTS && slot < n; i++) {
+    const uint8_t kind = slotKind(i);
+    if (kind == CrossPointSettings::HW_NONE) continue;
+    Content c;
+    fill(kind, date, c);
+    const int row = slot / 2;
+    const int col = slot % 2;
+    // An odd last tile spans the row, like a dashboard's wide stat card.
+    const bool wide = (slot == n - 1) && (col == 0);
+    const int width = wide ? fullWidth : halfWidth;
+    const int x = band.x + side + col * (halfWidth + TILE_GAP);
+    const int y = band.y + row * (tileH + TILE_GAP);
+    renderer.fillRoundedRect(x, y, width, tileH, TILE_RADIUS, Color::LightGray);
+    const int textX = x + TILE_PAD + ICON_SIZE + ICON_GAP;
+    const int textWidth = width - (textX - x) - TILE_PAD;
+    if (c.icon) drawIcon(renderer, *c.icon, x + TILE_PAD, y + iconOffset);
+    if (c.value[0]) {
+      const std::string value = renderer.truncatedText(VALUE_FONT, c.value, textWidth);
+      renderer.drawText(VALUE_FONT, textX, y + valueOffset, value.c_str(), true);
+    }
+    if (!compact && c.caption[0]) {
+      const std::string caption = fitCaption(renderer, c, width - 2 * TILE_PAD);
+      renderer.drawText(CAPTION_FONT, x + TILE_PAD, y + captionOffset, caption.c_str(), true);
+    }
+    slot++;
+  }
+  (void)rows;
+}
 }  // namespace
 
 int HomeWidgets::bandHeight(const GfxRenderer& renderer, const bool compact) {
-  const int rows = rowsFor(slotCount());
+  const int n = slotCount();
+  if (tileStyle()) {
+    const int rows = (n + 1) / 2;
+    return rows * tileHeight(renderer, compact) + rows * TILE_GAP;  // trailing gap keeps the card below clear
+  }
+  const int rows = rowsFor(n);
   return rows * rowHeight(renderer, compact) - (rows - 1) * PAD_Y;
+}
+
+bool HomeWidgets::formatHeaderDate(char* buf, const size_t bufSize) {
+  const CalendarDate date = CalendarDate::today();
+  if (!date.valid) return false;
+  snprintf(buf, bufSize, "%s, %s %u", I18N.get(WEEKDAY_LONG[CivilDate::weekday(date.epochDay())]),
+           I18N.get(MONTH_SHORT[date.month - 1]), static_cast<unsigned>(date.day));
+  return true;
 }
 
 void HomeWidgets::draw(const GfxRenderer& renderer, const Rect& band, const bool compact) {
   const int n = slotCount();
   if (n == 0) return;
+  if (tileStyle()) {
+    drawTiles(renderer, band, compact, n, CalendarDate::today());
+    return;
+  }
   const int rows = rowsFor(n);
   const int cols = (n + rows - 1) / rows;
   const int side = UITheme::getInstance().getMetrics().contentSidePadding;

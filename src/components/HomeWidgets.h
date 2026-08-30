@@ -2,6 +2,8 @@
 
 #include <GfxRenderer.h>
 
+#include <cstddef>
+
 struct Rect;
 
 // The home screen's row of complications: up to four slots, each an icon, a
@@ -15,7 +17,10 @@ int slotCount();
 // A clock or date widget is configured, so the home screen repaints when the minute changes.
 bool showsClock();
 bool showsWeather();
-// Band height for the full (icon + value + caption) or compact (icon + value) layout.
+// Band height for the full (icon + value + caption) or compact (icon + value)
+// layout. Themes with homeWidgetTiles get cards two to a row instead of a row.
 int bandHeight(const GfxRenderer& renderer, bool compact);
 void draw(const GfxRenderer& renderer, const Rect& band, bool compact);
+// "Saturday, Aug 29" for the Mono header; false when the clock is not set.
+bool formatHeaderDate(char* buf, size_t bufSize);
 }  // namespace HomeWidgets

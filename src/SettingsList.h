@@ -211,6 +211,7 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
     sleepScreenValues[CrossPointSettings::TRANSPARENT_CUSTOM] = StrId::STR_TRANSPARENT;
     sleepScreenValues[CrossPointSettings::YEAR_PROGRESS] = StrId::STR_YEAR_PROGRESS;
     sleepScreenValues[CrossPointSettings::READING_HEATMAP] = StrId::STR_READING_HEATMAP;
+    sleepScreenValues[CrossPointSettings::CALENDAR_VIEW] = StrId::STR_CALENDAR;
 
     std::vector<StrId> statusBarClockValues(CrossPointSettings::STATUS_BAR_CLOCK_MODE_COUNT);
     statusBarClockValues[CrossPointSettings::STATUS_BAR_CLOCK_HIDE] = StrId::STR_HIDE;
@@ -238,8 +239,10 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
                           "refreshFrequency", StrId::STR_CAT_DISPLAY),
         SettingInfo::Enum(StrId::STR_UI_THEME, &CrossPointSettings::uiTheme,
                           {StrId::STR_THEME_CLASSIC, StrId::STR_THEME_LYRA, StrId::STR_THEME_LYRA_EXTENDED,
-                           StrId::STR_THEME_ROUNDEDRAFF},
+                           StrId::STR_THEME_ROUNDEDRAFF, StrId::STR_THEME_MONO},
                           "uiTheme", StrId::STR_CAT_DISPLAY),
+        SettingInfo::Enum(StrId::STR_UI_FONT, &CrossPointSettings::uiFont,
+                          {StrId::STR_UI_FONT_GEIST, StrId::STR_UI_FONT_UBUNTU}, "uiFont", StrId::STR_CAT_DISPLAY),
         SettingInfo::Toggle(StrId::STR_SUNLIGHT_FADING_FIX, &CrossPointSettings::fadingFix, "fadingFix",
                             StrId::STR_CAT_DISPLAY),
 #if FREEINK_CAP_FRONTLIGHT

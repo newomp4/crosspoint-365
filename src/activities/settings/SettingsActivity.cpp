@@ -10,6 +10,7 @@
 #include <cstring>
 
 #include "ButtonRemapActivity.h"
+#include "CalendarSettingsActivity.h"
 #include "ClearCacheActivity.h"
 #include "CrossPointSettings.h"
 #include "DotsScreenSettingsActivity.h"
@@ -25,6 +26,7 @@
 #include "SettingsList.h"
 #include "StatusBarSettingsActivity.h"
 #include "TextSettingsActivity.h"
+#include "UiFont.h"
 #include "activities/network/WifiSelectionActivity.h"
 #include "activities/util/IntervalSelectionActivity.h"
 #include "components/UITheme.h"
@@ -74,6 +76,8 @@ void SettingsActivity::rebuildSettingsLists() {
         } else if (SETTINGS.sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::READING_HEATMAP) {
           displaySettings.push_back(
               SettingInfo::Action(StrId::STR_READING_HEATMAP_SETTINGS, SettingAction::ReadingHeatmap));
+        } else if (SETTINGS.sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::CALENDAR_VIEW) {
+          displaySettings.push_back(SettingInfo::Action(StrId::STR_CALENDAR, SettingAction::CalendarSettings));
         }
       }
     } else if (setting.category == StrId::STR_CAT_READER) {
@@ -217,8 +221,14 @@ void SettingsActivity::onExit() {
 }
 
 void SettingsActivity::applyUiSettingChange(uint8_t CrossPointSettings::* valuePtr) {
-  // Theme changes take effect immediately, on this screen — reload the theme
-  // and re-derive the app's tokens so the very next repaint is in the new look.
+  // Theme and font changes take effect immediately, on this screen — reload
+  // the theme / rebind the font slots and re-derive the app's tokens so the
+  // very next repaint is in the new look.
+  if (valuePtr == &CrossPointSettings::uiFont) {
+    applyUiFont();
+    resetUi();
+    return;
+  }
   if (valuePtr != &CrossPointSettings::uiTheme) {
     return;
   }
@@ -398,6 +408,9 @@ void SettingsActivity::toggleCurrentSetting() {
         break;
       case SettingAction::HomeWidgets:
         startActivityForResult(std::make_unique<HomeWidgetsSettingsActivity>(renderer, mappedInput), resultHandler);
+        break;
+      case SettingAction::CalendarSettings:
+        startActivityForResult(std::make_unique<CalendarSettingsActivity>(renderer, mappedInput), resultHandler);
         break;
       case SettingAction::None:
         // Do nothing

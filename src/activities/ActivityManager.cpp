@@ -26,6 +26,7 @@
 #include "util/BmpViewerActivity.h"
 #include "util/FrontlightPanelActivity.h"
 #include "util/FullScreenMessageActivity.h"
+#include "util/PomodoroActivity.h"
 
 static portMUX_TYPE activityManagerSpinlock = portMUX_INITIALIZER_UNLOCKED;
 
@@ -228,6 +229,8 @@ void ActivityManager::replaceActivity(std::unique_ptr<Activity>&& newActivity) {
 void ActivityManager::goToFileTransfer() {
   replaceActivity(std::make_unique<CrossPointWebServerActivity>(renderer, mappedInput));
 }
+
+void ActivityManager::goToPomodoro() { replaceActivity(std::make_unique<PomodoroActivity>(renderer, mappedInput)); }
 
 void ActivityManager::goToUsbDrive() {
 #if FREEINK_CAP_USB_MSC

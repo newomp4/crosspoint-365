@@ -13,12 +13,13 @@
 #include <string>
 
 #include "I18n.h"
+#include "PomodoroTimer.h"
 #include "RecentBooksStore.h"
 #include "components/UIScale.h"
 #include "components/UITheme.h"
 #include "components/UIThemeTokens.h"
 #include "components/UiAppHelpers.h"
-#include "components/icons/bookmark.h"
+#include "components/icons/menuIcons.h"
 #include "fontIds.h"
 
 // Internal constants
@@ -822,6 +823,25 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
       }
       renderer.drawText(SMALL_FONT_ID, clockX, textY, timeBuf);
     }
+  }
+
+  // Focus timer chip: a dot plus the minutes left in the running phase, so a
+  // reading session started from the Focus tab stays visible at page turns.
+  if (POMODORO.isActive()) {
+    char pomoBuf[12];
+    const uint32_t pomoMin = (POMODORO.remainingSeconds() + 59) / 60;
+    snprintf(pomoBuf, sizeof(pomoBuf), "%lum", static_cast<unsigned long>(pomoMin));
+    const int gap = leftClusterWidth > 0 ? 10 : 0;
+    const int dotSize = 6;
+    const int dotX = leftClusterX + leftClusterWidth + gap;
+    const int dotY = textY + (renderer.getLineHeight(SMALL_FONT_ID) - dotSize) / 2;
+    if (POMODORO.phase() == PomodoroTimer::Phase::Focus) {
+      renderer.fillRoundedRect(dotX, dotY, dotSize, dotSize, dotSize / 2, Color::Black);
+    } else {
+      renderer.drawRoundedRect(dotX, dotY, dotSize, dotSize, 1, dotSize / 2, true);
+    }
+    renderer.drawText(SMALL_FONT_ID, dotX + dotSize + 4, textY, pomoBuf);
+    leftClusterWidth += gap + dotSize + 4 + renderer.getTextWidth(SMALL_FONT_ID, pomoBuf);
   }
 
   // Draw Bookmark

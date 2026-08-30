@@ -25,6 +25,7 @@ class SleepActivity final : public Activity {
   void renderBlankSleepScreen() const;
   void renderYearProgressSleepScreen() const;
   void renderReadingHeatmapSleepScreen() const;
+  void renderCalendarSleepScreen() const;
 
   bool fromTimeout = false;
 };

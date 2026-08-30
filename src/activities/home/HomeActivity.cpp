@@ -29,7 +29,7 @@
 #include "fontIds.h"
 
 int HomeActivity::getMenuItemCount() const {
-  int count = 4;  // File Browser, Recents, File transfer, Settings
+  int count = 5;  // File Browser, Recents, Focus, File transfer, Settings
   if (!recentBooks.empty()) {
     count += recentBooks.size();
   }
@@ -138,6 +138,14 @@ void HomeActivity::onEnter() {
   requestUpdate();
 }
 
+int HomeActivity::menuTopFor(const int tileTop) const {
+  const auto& metrics = UITheme::getInstance().getMetrics();
+  if (metrics.homeMenuAtBottom) {
+    return renderer.getScreenHeight() - metrics.buttonHintsHeight - 8 - GUI.getMenuRowHeight(renderer);
+  }
+  return tileTop + metrics.homeCoverTileHeight + metrics.homeMenuTopOffset;
+}
+
 void HomeActivity::chooseWidgetBand() {
   widgetBand = 0;
   widgetBandCompact = false;
@@ -145,10 +153,16 @@ void HomeActivity::chooseWidgetBand() {
   const auto& metrics = UITheme::getInstance().getMetrics();
   const int menuRows =
       getMenuItemCount() - (metrics.homeContinueReadingInMenu ? 0 : static_cast<int>(recentBooks.size()));
-  const int menuHeight = menuRows * (GUI.getMenuRowHeight(renderer) + metrics.menuSpacing) - metrics.menuSpacing;
-  const int menuBottomWithoutBand =
-      metrics.homeTopPadding + metrics.homeCoverTileHeight + metrics.homeMenuTopOffset + menuHeight;
-  const int room = renderer.getScreenHeight() - metrics.buttonHintsHeight - 4 - menuBottomWithoutBand;
+  const int menuHeight = metrics.homeMenuHorizontal
+                             ? GUI.getMenuRowHeight(renderer)
+                             : menuRows * (GUI.getMenuRowHeight(renderer) + metrics.menuSpacing) - metrics.menuSpacing;
+  // Space left for the band: everything must clear the button hints, or the
+  // pinned bottom menu when the theme has one.
+  const int bottomLimit =
+      metrics.homeMenuAtBottom ? menuTopFor(0) - 8 : renderer.getScreenHeight() - metrics.buttonHintsHeight - 4;
+  const int contentBottomWithoutBand = metrics.homeTopPadding + metrics.homeCoverTileHeight +
+                                       (metrics.homeMenuAtBottom ? 0 : metrics.homeMenuTopOffset + menuHeight);
+  const int room = bottomLimit - contentBottomWithoutBand;
   const int full = HomeWidgets::bandHeight(renderer, false);
   const int compact = HomeWidgets::bandHeight(renderer, true);
   if (room >= full) {
@@ -246,6 +260,9 @@ void HomeActivity::loop() {
       case HomeMenuItem::OPDS_BROWSER:
         onOpdsBrowserOpen();
         break;
+      case HomeMenuItem::FOCUS_TIMER:
+        onPomodoroOpen();
+        break;
       case HomeMenuItem::FILE_TRANSFER:
         onFileTransferOpen();
         break;
@@ -261,6 +278,19 @@ void HomeActivity::loop() {
     selectorIndex = ButtonNavigator::nextIndex(selectorIndex, menuCount);
     requestUpdate();
   });
+
+  // Left/Right walk the selection too; on a tab-bar theme that is the natural
+  // way along the bar, and the buttons are otherwise unused here.
+  if (mappedInput.wasReleased(MappedInputManager::Button::Right)) {
+    selectorIndex = ButtonNavigator::nextIndex(selectorIndex, menuCount);
+    requestUpdate();
+    return;
+  }
+  if (mappedInput.wasReleased(MappedInputManager::Button::Left)) {
+    selectorIndex = ButtonNavigator::previousIndex(selectorIndex, menuCount);
+    requestUpdate();
+    return;
+  }
 
   buttonNavigator.onPrevious([this, menuCount] {
     selectorIndex = ButtonNavigator::previousIndex(selectorIndex, menuCount);
@@ -306,7 +336,7 @@ void HomeActivity::loop() {
     return;
   }
 
-  const int menuTop = tileTop + metrics.homeCoverTileHeight + metrics.homeMenuTopOffset;
+  const int menuTop = menuTopFor(tileTop);
   const int renderedMenuSelection =
       metrics.homeContinueReadingInMenu ? selectorIndex : selectorIndex - recentBooks.size();
   const int renderedMenuCount =
@@ -315,8 +345,13 @@ void HomeActivity::loop() {
   // Row height from the theme, not the metrics table: RoundedRaff draws
   // font-derived rows and the touch grid must match the visuals exactly.
   const int menuRowHeight = GUI.getMenuRowHeight(renderer);
-  const auto menuTouch = mappedInput.rowTouch(menuRow, menuTop, menuRowHeight + metrics.menuSpacing, renderedMenuCount,
-                                              0, INT32_MAX, menuRowHeight);
+  const auto menuTouch = metrics.homeMenuHorizontal
+                             ? mappedInput.colTouch(menuRow, metrics.contentSidePadding,
+                                                    (renderer.getScreenWidth() - 2 * metrics.contentSidePadding) /
+                                                        std::max(1, renderedMenuCount),
+                                                    renderedMenuCount, menuTop, menuTop + menuRowHeight)
+                             : mappedInput.rowTouch(menuRow, menuTop, menuRowHeight + metrics.menuSpacing,
+                                                    renderedMenuCount, 0, INT32_MAX, menuRowHeight);
   if (menuTouch != MappedInputManager::RowTouch::None) {
     const int touchedIndex =
         metrics.homeContinueReadingInMenu ? menuRow : menuRow + static_cast<int>(recentBooks.size());
@@ -348,8 +383,15 @@ void HomeActivity::render(RenderLock&&) {
   // Band spans topPadding..homeTopPadding: the cover tile starts at the fixed
   // homeTopPadding, so the height must shrink by topPadding or the band (and a
   // centered title, e.g. RoundedRaff's book title) sinks into the tile.
+  char headerDate[40] = {0};
+  const char* headerTitle = nullptr;
+  if (metrics.homeHeaderShowsDate) {
+    headerTitle = HomeWidgets::formatHeaderDate(headerDate, sizeof(headerDate)) ? headerDate : tr(STR_HOME_TITLE);
+  } else if (metrics.homeContinueReadingInMenu && !recentBooks.empty()) {
+    headerTitle = recentBooks[0].title.c_str();
+  }
   GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.homeTopPadding - metrics.topPadding},
-                 metrics.homeContinueReadingInMenu && !recentBooks.empty() ? recentBooks[0].title.c_str() : nullptr);
+                 headerTitle);
 
   chooseWidgetBand();
   const int tileTop = metrics.homeTopPadding + widgetBand;
@@ -372,12 +414,16 @@ void HomeActivity::render(RenderLock&&) {
                           std::bind(&HomeActivity::storeCoverBuffer, this));
 
   // Build menu items dynamically
-  std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_MENU_RECENT_BOOKS), tr(STR_FILE_TRANSFER),
-                                        tr(STR_SETTINGS_TITLE)};
-  std::vector<UIIcon> menuIcons = {Folder, Recent, Transfer, Settings};
+  // A tab bar gets one-word labels; stacked rows keep the full names.
+  const bool tabs = metrics.homeMenuHorizontal;
+  std::vector<const char*> menuItems = {
+      tabs ? tr(STR_TAB_FILES) : tr(STR_BROWSE_FILES), tabs ? tr(STR_TAB_RECENT) : tr(STR_MENU_RECENT_BOOKS),
+      tabs ? tr(STR_TAB_FOCUS) : tr(STR_POMODORO), tabs ? tr(STR_TAB_TRANSFER) : tr(STR_FILE_TRANSFER),
+      tabs ? tr(STR_TAB_SETTINGS) : tr(STR_SETTINGS_TITLE)};
+  std::vector<UIIcon> menuIcons = {Folder, Recent, Timer, Transfer, Settings};
 
   if (hasOpdsServers) {
-    menuItems.insert(menuItems.begin() + 2, tr(STR_OPDS_BROWSER));
+    menuItems.insert(menuItems.begin() + 2, tabs ? tr(STR_TAB_LIBRARY) : tr(STR_OPDS_BROWSER));
     menuIcons.insert(menuIcons.begin() + 2, Library);
   }
 
@@ -387,11 +433,9 @@ void HomeActivity::render(RenderLock&&) {
     menuIcons.insert(menuIcons.begin(), Book);
   }
 
+  const int menuTop = menuTopFor(tileTop);
   GUI.drawButtonMenu(
-      renderer,
-      Rect{0, tileTop + metrics.homeCoverTileHeight + metrics.homeMenuTopOffset, pageWidth,
-           pageHeight - (metrics.headerHeight + tileTop + metrics.verticalSpacing + metrics.homeMenuTopOffset +
-                         metrics.buttonHintsHeight)},
+      renderer, Rect{0, menuTop, pageWidth, pageHeight - menuTop - metrics.buttonHintsHeight},
       static_cast<int>(menuItems.size()),
       metrics.homeContinueReadingInMenu ? selectorIndex : selectorIndex - recentBooks.size(),
       [&menuItems](int index) { return std::string(menuItems[index]); },
@@ -421,5 +465,7 @@ void HomeActivity::onRecentsOpen() { activityManager.goToRecentBooks(); }
 void HomeActivity::onSettingsOpen() { activityManager.goToSettings(); }
 
 void HomeActivity::onFileTransferOpen() { activityManager.goToFileTransfer(); }
+
+void HomeActivity::onPomodoroOpen() { activityManager.goToPomodoro(); }
 
 void HomeActivity::onOpdsBrowserOpen() { activityManager.goToBrowser(); }

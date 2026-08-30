@@ -118,6 +118,13 @@ struct ThemeMetrics {
   int controlRadius;
   int sheetRadius;
   int capsuleRadius;
+
+  // Mono theme: one-row icon tab bar instead of stacked menu rows, widget
+  // tiles instead of the one-line widget band, and the date as the home title.
+  bool homeMenuHorizontal = false;
+  bool homeMenuAtBottom = false;  // pin the menu just above the button hints
+  bool homeWidgetTiles = false;
+  bool homeHeaderShowsDate = false;
 };
 
 enum UIIcon {
@@ -134,7 +141,8 @@ enum UIIcon {
   Wifi,
   Hotspot,
   Bookmark,
-  Usb
+  Usb,
+  Timer
 };
 
 // Default theme implementation (Classic Theme)

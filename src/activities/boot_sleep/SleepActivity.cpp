@@ -5,6 +5,7 @@
 #include <FontCacheManager.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
+#include <HalClock.h>
 #include <HalDisplay.h>
 #include <HalGPIO.h>
 #include <HalStorage.h>
@@ -12,6 +13,7 @@
 #include <Memory.h>
 #include <PNGdec.h>
 #include <Txt.h>
+#include <WiFi.h>
 #include <Xtc.h>
 
 #include <algorithm>
@@ -21,9 +23,11 @@
 #include <limits>
 #include <string>
 
+#include "CalendarStore.h"
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "activities/reader/ReaderUtils.h"
+#include "components/CalendarScreen.h"
 #include "components/DotsScreen.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -539,6 +543,8 @@ void SleepActivity::onEnter() {
       return renderYearProgressSleepScreen();
     case (CrossPointSettings::SLEEP_SCREEN_MODE::READING_HEATMAP):
       return renderReadingHeatmapSleepScreen();
+    case (CrossPointSettings::SLEEP_SCREEN_MODE::CALENDAR_VIEW):
+      return renderCalendarSleepScreen();
     case (CrossPointSettings::SLEEP_SCREEN_MODE::CUSTOM):
       return renderCustomSleepScreen();
     case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER):
@@ -854,4 +860,19 @@ void SleepActivity::renderYearProgressSleepScreen() const {
 
 void SleepActivity::renderReadingHeatmapSleepScreen() const {
   DotsScreen::render(renderer, DotsScreen::Kind::ReadingHeatmap, CalendarDate::today());
+}
+
+void SleepActivity::renderCalendarSleepScreen() const {
+  // Opportunistic: if Wi-Fi is already up (OPDS/transfer session), grab a
+  // fresh feed before drawing so the screen starts current. The while-asleep
+  // cadence is handled by the light-sleep loop in main.cpp.
+  CALENDAR.ensureLoaded();
+  if (WiFi.status() == WL_CONNECTED && CALENDAR.hasUrl()) {
+    const uint32_t now = halClock.getEpochSeconds();
+    if (CALENDAR.fetchedAtEpoch() + 300 < now) {
+      const int32_t offsetMinutes = (static_cast<int32_t>(SETTINGS.clockUtcOffsetQ) - 48) * 15;
+      CALENDAR.refresh(now, offsetMinutes);
+    }
+  }
+  CalendarScreen::render(renderer);
 }

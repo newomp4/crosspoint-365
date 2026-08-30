@@ -18,23 +18,30 @@
 #include <WiFi.h>
 #include <XteinkDetect.h>
 #include <builtinFonts/all.h>
+#include <driver/gpio.h>
+#include <esp_sleep.h>
 #if FREEINK_CAP_TOUCH
 #include <esp_sntp.h>
 #endif
 
 #include <cstring>
 
+#include "CalendarStore.h"
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "KOReaderCredentialStore.h"
 #include "MappedInputManager.h"
 #include "OpdsServerStore.h"
+#include "PomodoroTimer.h"
 #include "ReadingStats.h"
 #include "RecentBooksStore.h"
 #include "SdCardFontSystem.h"
+#include "UiFont.h"
+#include "WifiCredentialStore.h"
 #include "activities/Activity.h"
 #include "activities/ActivityManager.h"
 #include "activities/settings/SdFirmwareUpdateActivity.h"
+#include "components/CalendarScreen.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "images/LoadingIcon.h"
@@ -124,6 +131,28 @@ EpdFontFamily ui10FontFamily(&ui10MediumFont, &ui10BoldFont);
 EpdFont ui12MediumFont(&ubuntu_12_medium);
 EpdFont ui12BoldFont(&ubuntu_12_bold);
 EpdFontFamily ui12FontFamily(&ui12MediumFont, &ui12BoldFont);
+
+// Geist UI family: SemiBold as the regular weight, Bold for emphasis, a
+// Medium 8 for the small slot and an 18 for large headers.
+EpdFont geistUi8MediumFont(&geist_ui_8_medium);
+EpdFontFamily geistUi8FontFamily(&geistUi8MediumFont);
+EpdFont geistUi10SemiBoldFont(&geist_ui_10_semibold);
+EpdFont geistUi10BoldFont(&geist_ui_10_bold);
+EpdFontFamily geistUi10FontFamily(&geistUi10SemiBoldFont, &geistUi10BoldFont);
+EpdFont geistUi12SemiBoldFont(&geist_ui_12_semibold);
+EpdFont geistUi12BoldFont(&geist_ui_12_bold);
+EpdFontFamily geistUi12FontFamily(&geistUi12SemiBoldFont, &geistUi12BoldFont);
+EpdFont geistUi18BoldFont(&geist_ui_18_bold);
+EpdFontFamily geistUi18FontFamily(&geistUi18BoldFont);
+
+void applyUiFont() {
+  const bool geist = SETTINGS.uiFont == CrossPointSettings::UI_FONT_GEIST;
+  renderer.insertFont(UI_10_FONT_ID, geist ? geistUi10FontFamily : ui10FontFamily);
+  renderer.insertFont(UI_12_FONT_ID, geist ? geistUi12FontFamily : ui12FontFamily);
+  renderer.insertFont(SMALL_FONT_ID, geist ? geistUi8FontFamily : smallFontFamily);
+  // Ubuntu has no large cut; its large-title slot falls back to the body family.
+  renderer.insertFont(UI_TITLE_FONT_ID, geist ? geistUi18FontFamily : ui12FontFamily);
+}
 
 // Year Progress / Reading Heatmap sleep-screen fonts (ASCII-only display cuts).
 // Helvetica Neue ships only its Bold weight, in the family's regular slot.
@@ -272,6 +301,104 @@ static bool loadSleepFrameBuffer() {
   return true;
 }
 
+// While the Calendar sleep screen is up (URL set, cadence not Off), the
+// device holds in timed light sleep instead of powering down: the X3 cuts
+// battery power in deep sleep, so a deep-sleep timer could never fire there.
+// Each timer wake joins the saved Wi-Fi, re-fetches the feed and repaints.
+// The power button leaves the loop through a silent reboot (splashless, honors
+// the resume-reader path). Returns when the loop should fall through to a
+// plain deep sleep: cadence Off, battery low, or no wakeable power button.
+void maybeRunCalendarSleepLoop() {
+  if (SETTINGS.sleepScreen != CrossPointSettings::SLEEP_SCREEN_MODE::CALENDAR_VIEW) return;
+  uint32_t intervalS = 0;
+  switch (SETTINGS.calendarSleepRefresh) {
+    case CrossPointSettings::CAL_REFRESH_10M:
+      intervalS = 10 * 60;
+      break;
+    case CrossPointSettings::CAL_REFRESH_30M:
+      intervalS = 30 * 60;
+      break;
+    case CrossPointSettings::CAL_REFRESH_1H:
+      intervalS = 60 * 60;
+      break;
+    default:
+      return;
+  }
+  CALENDAR.ensureLoaded();
+  if (!CALENDAR.hasUrl()) return;
+
+  const int8_t powerPin = BoardConfig::ACTIVE.input.power;
+  if (powerPin < 0) return;
+  const bool activeHigh = BoardConfig::ACTIVE.input.powerActiveHigh;
+  const auto powerGpio = static_cast<gpio_num_t>(powerPin);
+  constexpr uint16_t MIN_BATTERY_PERCENT = 15;
+
+  // Light sleep keeps the rails up, so the frontlight must be put out
+  // explicitly (deep sleep kills its PWM as a side effect; this path doesn't).
+  Frontlight.setOn(false);
+  WIFI_STORE.loadFromFile();
+  LOG_INF("CAL", "Calendar sleep loop armed: every %lus", static_cast<unsigned long>(intervalS));
+
+  while (true) {
+    if (!gpio.isUsbConnected() && powerManager.getBatteryPercentage() < MIN_BATTERY_PERCENT) {
+      // Disarm the light-sleep sources: a timer left armed here would wake the
+      // coming deep sleep every interval whenever USB keeps the chip powered.
+      esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
+      esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO);
+      gpio_wakeup_disable(powerGpio);
+      LOG_INF("CAL", "Battery low; leaving calendar loop for deep sleep");
+      return;
+    }
+    // Radio down for the long wait — it is the dominant drain.
+    if (WiFi.getMode() != WIFI_MODE_NULL) {
+      WiFi.disconnect(true);
+      WiFi.mode(WIFI_OFF);
+    }
+
+    pinMode(powerPin, activeHigh ? INPUT_PULLDOWN : INPUT_PULLUP);
+    gpio_wakeup_enable(powerGpio, activeHigh ? GPIO_INTR_HIGH_LEVEL : GPIO_INTR_LOW_LEVEL);
+    esp_sleep_enable_gpio_wakeup();
+    esp_sleep_enable_timer_wakeup(static_cast<uint64_t>(intervalS) * 1000000ULL);
+    esp_light_sleep_start();
+
+    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_GPIO) {
+      gpio_wakeup_disable(powerGpio);
+      // Debounce: a level glitch re-enters the loop instead of waking the UI.
+      delay(30);
+      const int pressedLevel = activeHigh ? HIGH : LOW;
+      if (digitalRead(powerPin) != pressedLevel) continue;
+      LOG_INF("CAL", "Power button wake from calendar loop");
+      if (APP_STATE.lastSleepFromReader && !APP_STATE.openEpubPath.empty()) {
+        silentRestartToReader();
+      } else {
+        silentRestart();
+      }
+      return;  // not reached; silentRestart reboots
+    }
+    gpio_wakeup_disable(powerGpio);
+
+    // Timer fired: quiet rejoin of the last-used network, fetch, repaint.
+    const std::string ssid = WIFI_STORE.getLastConnectedSsid();
+    if (ssid.empty()) continue;
+    const auto cred = WIFI_STORE.findCredential(ssid);
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid.c_str(), cred && !cred->password.empty() ? cred->password.c_str() : nullptr);
+    bool connected = false;
+    for (int i = 0; i < 100 && !connected; i++) {  // up to 10 s
+      connected = WiFi.status() == WL_CONNECTED;
+      delay(100);
+    }
+    if (!connected) {
+      LOG_INF("CAL", "Calendar loop: Wi-Fi join failed");
+      continue;
+    }
+    const int32_t offsetMinutes = (static_cast<int32_t>(SETTINGS.clockUtcOffsetQ) - 48) * 15;
+    if (CALENDAR.refresh(halClock.getEpochSeconds(), offsetMinutes) == CalendarStore::RefreshResult::Ok) {
+      CalendarScreen::render(renderer);
+    }
+  }
+}
+
 // Enter deep sleep mode
 void enterDeepSleep(bool fromTimeout = false) {
   HalPowerManager::Lock powerLock;  // Ensure we are at normal CPU frequency for sleep preparation
@@ -298,6 +425,8 @@ void enterDeepSleep(bool fromTimeout = false) {
     // A stale Quick Resume frame must not replace the selected sleep screen during wake.
     Storage.remove(SLEEP_FRAME_FILE);
   }
+
+  maybeRunCalendarSleepLoop();
 
   // Tear down WiFi so the modem power domain isn't held alive across deep sleep.
   // Wake from deep sleep is effectively a chip reset, so no state needs to survive.
@@ -349,9 +478,7 @@ void setupDisplayAndFonts(bool seamless = false) {
   renderer.insertFont(NOTOSANS_16_FONT_ID, notosans16FontFamily);
   renderer.insertFont(NOTOSANS_18_FONT_ID, notosans18FontFamily);
 #endif  // OMIT_FONTS
-  renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);
-  renderer.insertFont(UI_12_FONT_ID, ui12FontFamily);
-  renderer.insertFont(SMALL_FONT_ID, smallFontFamily);
+  applyUiFont();
   renderer.insertFont(HELVETICANEUE_14_FONT_ID, helveticaNeue14FontFamily);
   renderer.insertFont(HELVETICANEUE_24_FONT_ID, helveticaNeue24FontFamily);
   renderer.insertFont(HELVETICANEUE_40_FONT_ID, helveticaNeue40FontFamily);
@@ -707,7 +834,11 @@ void loop() {
   }
 #endif
 
+  POMODORO.update();
   const unsigned long sleepTimeoutMs = SETTINGS.getSleepTimeoutMs();
+  // A running focus/break timer counts as activity: the user asked for a
+  // bounded session, so the inactivity timeout must not cut it short.
+  if (POMODORO.isRunning()) lastActivityTime = millis();
   if (sleepTimeoutMs > 0 && millis() - lastActivityTime >= sleepTimeoutMs) {
     LOG_DBG("SLP", "Auto-sleep triggered after %lu ms of inactivity", sleepTimeoutMs);
     enterDeepSleep(true);

@@ -27,6 +27,7 @@ enum class SettingAction {
   YearProgress,
   ReadingHeatmap,
   HomeWidgets,
+  CalendarSettings,
 };
 
 struct SettingInfo {
