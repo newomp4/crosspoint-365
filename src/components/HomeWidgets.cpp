@@ -546,5 +546,21 @@ void HomeWidgets::drawCalendarPanel(const GfxRenderer& renderer, const Rect& rec
   }
   if (shown == 0) {
     renderer.drawText(UI_10_FONT_ID, textX, y, tr(STR_CAL_NOTHING), true);
+    return;
+  }
+  // Count what didn't fit and mark it bottom-right.
+  int remaining = 0;
+  for (uint8_t i = 0; i < CALENDAR.eventCount(); i++) {
+    const auto& e = CALENDAR.event(i);
+    if (e.endMinute() <= nowLocalMinute && !(e.allDay && e.startMinute / 1440 == static_cast<uint32_t>(today)))
+      continue;
+    remaining++;
+  }
+  remaining -= shown;
+  if (remaining > 0) {
+    char more[12];
+    snprintf(more, sizeof(more), "+%d", remaining);
+    const int w = renderer.getTextWidth(CAPTION_FONT, more);
+    renderer.drawText(CAPTION_FONT, x + width - TILE_PAD - 2 - w, rect.y + TILE_PAD, more, true);
   }
 }

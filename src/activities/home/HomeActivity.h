@@ -22,7 +22,8 @@ class HomeActivity final : public Activity {
   // loop()'s touch grid.
   int widgetBand = 0;
   bool widgetBandCompact = false;
-  uint8_t lastClockMinute = 255;  // minute painted by the last render; 255 = none
+  uint8_t lastClockMinute = 255;          // minute painted by the last render; 255 = none
+  uint32_t lastFocusMinute = 0xFFFFFFFF;  // focus-tab countdown minute at last render
   bool weatherAutoTried = false;
   bool coverRendered = false;      // Track if cover has been rendered once
   bool coverBufferStored = false;  // Track if cover buffer is stored

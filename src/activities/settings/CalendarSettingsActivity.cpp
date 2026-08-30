@@ -3,6 +3,7 @@
 #include <GfxRenderer.h>
 #include <I18n.h>
 
+#include <cstdio>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -67,15 +68,14 @@ void CalendarSettingsActivity::editUrl() {
   // Opens empty on purpose: a saved secret address wraps to five-plus lines
   // and runs into the keys. Typing replaces the old link; the browser page is
   // the place to see or tweak the saved one.
-  startActivityForResult(
-      std::make_unique<KeyboardEntryActivity>(renderer, mappedInput, tr(STR_CAL_ENTER_URL), "",
-                                              CalendarStore::URL_LEN - 1, InputType::Text),
-      [](const ActivityResult& result) {
-        if (result.isCancelled) return;
-        const auto& kb = std::get<KeyboardResult>(result.data);
-        if (kb.text.empty()) return;  // empty confirm keeps the saved link
-        CALENDAR.setFeedUrl(kb.text.c_str());
-      });
+  startActivityForResult(std::make_unique<KeyboardEntryActivity>(renderer, mappedInput, tr(STR_CAL_ENTER_URL), "",
+                                                                 CalendarStore::URL_LEN - 1, InputType::Text),
+                         [](const ActivityResult& result) {
+                           if (result.isCancelled) return;
+                           const auto& kb = std::get<KeyboardResult>(result.data);
+                           if (kb.text.empty()) return;  // empty confirm keeps the saved link
+                           CALENDAR.setFeedUrl(kb.text.c_str());
+                         });
 }
 
 void CalendarSettingsActivity::handleSelection(const int index) {
@@ -131,8 +131,12 @@ std::string CalendarSettingsActivity::rowValueText(const int index) const {
     case ITEM_SLEEP_REFRESH:
       return I18N.get(
           refreshNames[SETTINGS.calendarSleepRefresh < S::CAL_SLEEP_REFRESH_COUNT ? SETTINGS.calendarSleepRefresh : 0]);
-    case ITEM_REFRESH_NOW:
-      return CALENDAR.hasData() ? tr(STR_WEATHER_HAS_DATA) : "";
+    case ITEM_REFRESH_NOW: {
+      if (!CALENDAR.hasData()) return "";
+      char buf[24];
+      snprintf(buf, sizeof(buf), tr(STR_CAL_EVENTS_SHORT), static_cast<unsigned>(CALENDAR.eventCount()));
+      return buf;
+    }
     default:
       return "";
   }

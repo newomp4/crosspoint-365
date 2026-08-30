@@ -20,6 +20,7 @@
 #include "CrossPointState.h"
 #include "MappedInputManager.h"
 #include "OpdsServerStore.h"
+#include "PomodoroTimer.h"
 #include "ReadingStats.h"
 #include "RecentBooksStore.h"
 #include "WeatherStore.h"
@@ -264,6 +265,15 @@ void HomeActivity::loop() {
   const int tileTop = metrics.homeTopPadding + widgetBand;
 
   // A clock widget keeps time: repaint when the minute turns over.
+  // The Focus tab counts down while a session runs; repaint when its minute flips.
+  if (POMODORO.isActive()) {
+    const uint32_t focusMinute = (POMODORO.remainingSeconds() + 59) / 60;
+    if (focusMinute != lastFocusMinute) {
+      lastFocusMinute = focusMinute;
+      requestUpdate();
+    }
+  }
+
   if (widgetBand > 0 && lastClockMinute != 255) {
     uint8_t hour, minute;
     if (halClock.getTime(hour, minute) && minute != lastClockMinute) {
@@ -448,15 +458,35 @@ void HomeActivity::render(RenderLock&&) {
     }
   };
 
-  drawSection(section1, Rect{0, tileTop, pageWidth, metrics.homeCoverTileHeight});
+  // Zone heights flex: a lone section takes the whole span between the
+  // widgets and the menu, so a "None" slot never leaves dead paper.
+  const int sectionsBottom = menuTopFor(tileTop) - 12;
+  int zone1Height = metrics.homeCoverTileHeight;
+  if (sectioned) {
+    if (section1 == CrossPointSettings::HOME_SECTION_NONE) {
+      zone1Height = 0;
+    } else if (section2 == CrossPointSettings::HOME_SECTION_NONE) {
+      zone1Height = sectionsBottom - tileTop;
+    }
+  }
+  if (zone1Height > 0) {
+    drawSection(section1, Rect{0, tileTop, pageWidth, zone1Height});
+  }
 
   // Build menu items dynamically
   // A tab bar gets one-word labels; stacked rows keep the full names.
   const bool tabs = metrics.homeMenuHorizontal;
+  // A running focus session turns its tab label into the minutes left.
+  static char focusLabel[12];
+  const char* focusTab = tabs ? tr(STR_TAB_FOCUS) : tr(STR_POMODORO);
+  if (POMODORO.isActive()) {
+    snprintf(focusLabel, sizeof(focusLabel), "%lum",
+             static_cast<unsigned long>((POMODORO.remainingSeconds() + 59) / 60));
+    focusTab = focusLabel;
+  }
   std::vector<const char*> menuItems = {
-      tabs ? tr(STR_TAB_FILES) : tr(STR_BROWSE_FILES), tabs ? tr(STR_TAB_RECENT) : tr(STR_MENU_RECENT_BOOKS),
-      tabs ? tr(STR_TAB_FOCUS) : tr(STR_POMODORO), tabs ? tr(STR_TAB_TRANSFER) : tr(STR_FILE_TRANSFER),
-      tabs ? tr(STR_TAB_SETTINGS) : tr(STR_SETTINGS_TITLE)};
+      tabs ? tr(STR_TAB_FILES) : tr(STR_BROWSE_FILES), tabs ? tr(STR_TAB_RECENT) : tr(STR_MENU_RECENT_BOOKS), focusTab,
+      tabs ? tr(STR_TAB_TRANSFER) : tr(STR_FILE_TRANSFER), tabs ? tr(STR_TAB_SETTINGS) : tr(STR_SETTINGS_TITLE)};
   std::vector<UIIcon> menuIcons = {Folder, Recent, Timer, Transfer, Settings};
 
   if (hasOpdsServers) {
@@ -472,11 +502,11 @@ void HomeActivity::render(RenderLock&&) {
 
   const int menuTop = menuTopFor(tileTop);
 
-  // The flexible strip between the card slot and the menu is section 2
-  // (skipped when the widget band squeezed it below a usable height).
-  if (sectioned) {
-    const int panelTop = tileTop + metrics.homeCoverTileHeight + 12;
-    const int panelHeight = menuTop - 12 - panelTop;
+  // Zone 2 takes whatever zone 1 left (skipped when the widget band squeezed
+  // it below a usable height).
+  if (sectioned && section2 != CrossPointSettings::HOME_SECTION_NONE) {
+    const int panelTop = tileTop + (zone1Height > 0 ? zone1Height + 12 : 0);
+    const int panelHeight = sectionsBottom - panelTop;
     if (panelHeight >= 64) {
       drawSection(section2, Rect{0, panelTop, pageWidth, panelHeight});
     }
