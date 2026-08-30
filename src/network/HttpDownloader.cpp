@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <Logging.h>
 #include <Memory.h>
+#include <WiFi.h>
 #include <base64.h>
 #include <esp_wifi.h>
 
@@ -48,16 +49,35 @@ bool isRedirect(int status) {
 
 char s_lastError[72] = "";
 
-// "h<hop> <host> <what>" — host clipped so the line fits a small screen.
-void noteError(const int hop, const std::string& url, const char* fmt, const int a = 0, const int b = 0) {
+std::string hostOf(const std::string& url) {
   const size_t schemeEnd = url.find("://");
   const size_t hostStart = schemeEnd == std::string::npos ? 0 : schemeEnd + 3;
   const size_t hostEnd = url.find('/', hostStart);
   std::string host = url.substr(hostStart, hostEnd == std::string::npos ? std::string::npos : hostEnd - hostStart);
   if (host.size() > 30) host = host.substr(0, 30);
+  return host;
+}
+
+// "h<hop> <host> <what>" — host clipped so the line fits a small screen.
+void noteError(const int hop, const std::string& url, const char* fmt, const int a = 0, const int b = 0) {
   char what[32];
   snprintf(what, sizeof(what), fmt, a, b);
-  snprintf(s_lastError, sizeof(s_lastError), "h%d %s %s", hop + 1, host.c_str(), what);
+  snprintf(s_lastError, sizeof(s_lastError), "h%d %s %s", hop + 1, hostOf(url).c_str(), what);
+}
+
+// A dead connect is most often the network, not the peer: resolve the host
+// again and say which layer refused. An ad-block DNS answering 0.0.0.0 is the
+// classic reason exactly one host in a redirect chain is unreachable.
+void noteConnectError(const int hop, const std::string& url, const int status) {
+  const std::string host = hostOf(url);
+  IPAddress ip;
+  if (WiFi.hostByName(host.c_str(), ip) != 1) {
+    noteError(hop, url, "dns fail");
+  } else if (ip == IPAddress(0, 0, 0, 0)) {
+    noteError(hop, url, "dns blocked");
+  } else {
+    noteError(hop, url, "conn %d ip ok", status);
+  }
 }
 
 // OtaUpdater.cpp already disables WiFi power-save for firmware downloads, but
@@ -118,7 +138,7 @@ HttpDownloader::DownloadError runGetWolf(const std::string& startUrl, const std:
     if (http.aborted()) return HttpDownloader::ABORTED;
     if (status < 0) {
       LOG_ERR("HTTP", "wolfSSL request failed (%d): %s", status, url.c_str());
-      noteError(hop, url, "tls/conn %d", status);
+      noteConnectError(hop, url, status);
       return HttpDownloader::HTTP_ERROR;
     }
     if (isRedirect(status)) {
