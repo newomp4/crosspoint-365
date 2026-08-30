@@ -107,11 +107,14 @@ constexpr DotsField DOTS_FIELDS[] = {
     {"homeWidget4", &S::homeWidget4, 0, S::HOME_WIDGET_COUNT - 1},
     {"weatherUnit", &S::weatherUnit, 0, S::WEATHER_UNIT_COUNT - 1},
     {"weatherAutoRefresh", &S::weatherAutoRefresh, 0, S::WEATHER_AUTO_REFRESH_COUNT - 1},
+    {"homeSection1", &S::homeSection1, 0, S::HOME_SECTION_COUNT - 1},
+    {"homeSection2", &S::homeSection2, 0, S::HOME_SECTION_COUNT - 1},
     {"calendarDays", &S::calendarDays, 1, 7},
     {"calendarSleepRefresh", &S::calendarSleepRefresh, 0, S::CAL_SLEEP_REFRESH_COUNT - 1},
     {"pomodoroFocusMin", &S::pomodoroFocusMin, 5, 120},
     {"pomodoroBreakMin", &S::pomodoroBreakMin, 1, 60},
     {"forkThemeMigrated", &S::forkThemeMigrated, 0, 1},
+    {"forkUnitMigrated", &S::forkUnitMigrated, 0, 1},
 };
 }  // namespace
 
@@ -288,6 +291,13 @@ bool CrossPointSettings::fromJson(JsonVariantConst doc) {
     // One-time switch to the fork's own look; the user can pick any theme afterwards.
     uiTheme = MONO;
     forkThemeMigrated = 1;
+    needsResave = true;
+  }
+  if (!forkUnitMigrated) {
+    // One-time switch to Fahrenheit (the fork owner's preference); the unit
+    // stays freely selectable afterwards.
+    weatherUnit = WEATHER_FAHRENHEIT;
+    forkUnitMigrated = 1;
     needsResave = true;
   }
 

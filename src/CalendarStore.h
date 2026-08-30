@@ -27,7 +27,7 @@ class CalendarStore : public PersistableStore<CalendarStore> {
     uint32_t endMinute() const { return startMinute + durationMinutes; }
   };
 
-  enum class RefreshResult { Ok, NoUrl, NoWifi, FetchFailed };
+  enum class RefreshResult { Ok, NoUrl, NoWifi, FetchFailed, NotICal };
 
   static const char* getFilePath() { return "/.crosspoint/calendar.json"; }
   void toJson(JsonDocument& doc) const;

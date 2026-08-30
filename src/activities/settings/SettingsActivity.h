@@ -28,7 +28,6 @@ enum class SettingAction {
   ReadingHeatmap,
   HomeWidgets,
   CalendarSettings,
-  SleepPreview,
 };
 
 struct SettingInfo {

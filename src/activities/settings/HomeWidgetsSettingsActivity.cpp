@@ -24,6 +24,8 @@ enum MenuItem {
   ITEM_SLOT_2,
   ITEM_SLOT_3,
   ITEM_SLOT_4,
+  ITEM_SECTION_TOP,
+  ITEM_SECTION_BOTTOM,
   ITEM_WEATHER_LOCATION,
   ITEM_WEATHER_UNIT,
   ITEM_WEATHER_AUTO,
@@ -34,9 +36,9 @@ enum MenuItem {
 static_assert(ITEM_COUNT == HomeWidgetsSettingsActivity::ITEM_COUNT, "keep ITEM_COUNT in sync");
 
 constexpr StrId menuNames[ITEM_COUNT] = {
-    StrId::STR_HW_SLOT_1,    StrId::STR_HW_SLOT_2,           StrId::STR_HW_SLOT_3,
-    StrId::STR_HW_SLOT_4,    StrId::STR_WEATHER_LOCATION,    StrId::STR_WEATHER_UNIT,
-    StrId::STR_WEATHER_AUTO, StrId::STR_WEATHER_REFRESH_NOW, StrId::STR_CLOCK_FORMAT};
+    StrId::STR_HW_SLOT_1,        StrId::STR_HW_SLOT_2,           StrId::STR_HW_SLOT_3,        StrId::STR_HW_SLOT_4,
+    StrId::STR_HOME_SECTION_TOP, StrId::STR_HOME_SECTION_BOTTOM, StrId::STR_WEATHER_LOCATION, StrId::STR_WEATHER_UNIT,
+    StrId::STR_WEATHER_AUTO,     StrId::STR_WEATHER_REFRESH_NOW, StrId::STR_CLOCK_FORMAT};
 
 constexpr StrId widgetNames[S::HOME_WIDGET_COUNT] = {
     StrId::STR_NONE_OPT,   StrId::STR_HW_CLOCK,      StrId::STR_HW_DATE,    StrId::STR_HW_TODAY,
@@ -46,6 +48,8 @@ constexpr StrId unitNames[S::WEATHER_UNIT_COUNT] = {StrId::STR_WEATHER_CELSIUS, 
 constexpr StrId autoNames[S::WEATHER_AUTO_REFRESH_COUNT] = {StrId::STR_WEATHER_AUTO_MANUAL,
                                                             StrId::STR_WEATHER_AUTO_WAKE};
 constexpr StrId clockFormatNames[2] = {StrId::STR_CLOCK_FORMAT_24H, StrId::STR_CLOCK_FORMAT_12H};
+constexpr StrId sectionNames[S::HOME_SECTION_COUNT] = {StrId::STR_CONTINUE_READING, StrId::STR_HW_LAST_14,
+                                                       StrId::STR_CALENDAR, StrId::STR_NONE_OPT};
 
 uint8_t S::* slotField(const int index) {
   switch (index) {
@@ -120,6 +124,12 @@ void HomeWidgetsSettingsActivity::handleSelection(const int index) {
     case ITEM_SLOT_4:
       showEnumPopup(menuNames[index], widgetNames, S::HOME_WIDGET_COUNT, slotField(index));
       break;
+    case ITEM_SECTION_TOP:
+      showEnumPopup(StrId::STR_HOME_SECTION_TOP, sectionNames, S::HOME_SECTION_COUNT, &S::homeSection1);
+      break;
+    case ITEM_SECTION_BOTTOM:
+      showEnumPopup(StrId::STR_HOME_SECTION_BOTTOM, sectionNames, S::HOME_SECTION_COUNT, &S::homeSection2);
+      break;
     case ITEM_WEATHER_LOCATION:
       editLocation();
       break;
@@ -148,6 +158,10 @@ std::string HomeWidgetsSettingsActivity::rowValueText(const int index) const {
     case ITEM_SLOT_3:
     case ITEM_SLOT_4:
       return enumLabel(widgetNames, S::HOME_WIDGET_COUNT, s.*slotField(index));
+    case ITEM_SECTION_TOP:
+      return enumLabel(sectionNames, S::HOME_SECTION_COUNT, s.homeSection1);
+    case ITEM_SECTION_BOTTOM:
+      return enumLabel(sectionNames, S::HOME_SECTION_COUNT, s.homeSection2);
     case ITEM_WEATHER_LOCATION:
       return WEATHER.hasLocation() ? WEATHER.locationName() : tr(STR_NOT_SET);
     case ITEM_WEATHER_UNIT:

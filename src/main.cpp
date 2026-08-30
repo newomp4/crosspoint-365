@@ -345,6 +345,9 @@ void maybeRunCalendarSleepLoop() {
   Frontlight.setOn(false);
   LOG_INF("CAL", "Calendar sleep loop armed: every %lus", static_cast<unsigned long>(intervalS));
 
+  // Consecutive failed cycles stretch the wait (up to 4x): a dead network or
+  // broken link must not burn six Wi-Fi joins an hour for nothing.
+  uint8_t failStreak = 0;
   while (true) {
     if (!gpio.isUsbConnected() && powerManager.getBatteryPercentage() < MIN_BATTERY_PERCENT) {
       // Disarm the light-sleep sources: a timer left armed here would wake the
@@ -364,7 +367,8 @@ void maybeRunCalendarSleepLoop() {
     pinMode(powerPin, activeHigh ? INPUT_PULLDOWN : INPUT_PULLUP);
     gpio_wakeup_enable(powerGpio, activeHigh ? GPIO_INTR_HIGH_LEVEL : GPIO_INTR_LOW_LEVEL);
     esp_sleep_enable_gpio_wakeup();
-    esp_sleep_enable_timer_wakeup(static_cast<uint64_t>(intervalS) * 1000000ULL);
+    const uint32_t backoff = failStreak >= 6 ? 4 : failStreak >= 3 ? 2 : 1;
+    esp_sleep_enable_timer_wakeup(static_cast<uint64_t>(intervalS) * backoff * 1000000ULL);
     esp_light_sleep_start();
 
     if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_GPIO) {
@@ -409,11 +413,15 @@ void maybeRunCalendarSleepLoop() {
     }
     if (!connected) {
       LOG_INF("CAL", "Calendar loop: Wi-Fi join failed");
+      failStreak++;
       continue;
     }
     const int32_t offsetMinutes = (static_cast<int32_t>(SETTINGS.clockUtcOffsetQ) - 48) * 15;
     if (CALENDAR.refresh(halClock.getEpochSeconds(), offsetMinutes) == CalendarStore::RefreshResult::Ok) {
+      failStreak = 0;
       CalendarScreen::render(renderer);
+    } else {
+      failStreak++;
     }
   }
 }
@@ -855,6 +863,11 @@ void loop() {
 #endif
 
   POMODORO.update();
+  // Reading is long idle gaps between page turns: downclock quickly there for
+  // battery. Everywhere else the grace is long enough that navigation never
+  // runs at reduced speed (the C3 drops to 10 MHz).
+  const unsigned long idleDowclockMs =
+      activityManager.isReaderActivity() ? 3000UL : HalPowerManager::IDLE_POWER_SAVING_MS;
   const unsigned long sleepTimeoutMs = SETTINGS.getSleepTimeoutMs();
   // A running focus/break timer counts as activity: the user asked for a
   // bounded session, so the inactivity timeout must not cut it short.
@@ -931,7 +944,7 @@ void loop() {
     powerManager.setPowerSaving(false);  // Make sure we're at full performance when skipLoopDelay is requested
     yield();                             // Give FreeRTOS a chance to run tasks, but return immediately
   } else {
-    if (millis() - lastActivityTime >= HalPowerManager::IDLE_POWER_SAVING_MS) {
+    if (millis() - lastActivityTime >= idleDowclockMs) {
       // If we've been inactive for a while, increase the delay to save power
       powerManager.setPowerSaving(true);  // Lower CPU frequency after extended inactivity
       delay(50);

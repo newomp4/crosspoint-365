@@ -26,4 +26,6 @@ bool formatHeaderDate(char* buf, size_t bufSize);
 // Last-14-days reading bars on a widget-style card; fills the flexible space
 // under the continue-reading card on tile themes.
 void drawActivityPanel(const GfxRenderer& renderer, const Rect& rect);
+// Upcoming calendar events on the same card style, for a home section slot.
+void drawCalendarPanel(const GfxRenderer& renderer, const Rect& rect);
 }  // namespace HomeWidgets

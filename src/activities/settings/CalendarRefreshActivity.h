@@ -17,7 +17,7 @@ class CalendarRefreshActivity final : public Activity {
   void render(RenderLock&&) override;
 
  private:
-  enum State { SYNCING, SUCCESS, NO_URL, FAILED };
+  enum State { SYNCING, SUCCESS, NO_URL, FAILED, NOT_ICAL };
   State state = SYNCING;
   bool shouldTearDownWifiOnExit = false;
   char summary[48] = {0};

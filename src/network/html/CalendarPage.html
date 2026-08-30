@@ -81,8 +81,20 @@
             body: "url=" + encodeURIComponent(value),
           });
           if (!r.ok) throw new Error();
-          status.className = "status ok";
-          status.textContent = value ? "Saved. The reader fetches it on the next calendar update." : "Cleared.";
+          const d = await r.json().catch(() => ({}));
+          if (!value) {
+            status.className = "status ok";
+            status.textContent = "Cleared.";
+          } else if (d.fetched) {
+            status.className = "status ok";
+            status.textContent = "Saved \u2014 fetched " + d.events + " upcoming event" + (d.events === 1 ? "" : "s") + " \u2713";
+          } else if (d.error === "not_ical") {
+            status.className = "status err";
+            status.textContent = "Saved, but that link doesn't return calendar data. Copy the \u201cSecret address in iCal format\u201d \u2014 not the calendar's web link.";
+          } else {
+            status.className = "status err";
+            status.textContent = "Saved, but the reader couldn't fetch it (network error). It will retry on the next calendar update.";
+          }
           load();
         } catch (e) {
           status.className = "status err";

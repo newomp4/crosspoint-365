@@ -8,6 +8,7 @@
 #include <cstring>
 #include <string>
 
+#include "CrossPointSettings.h"
 #include "network/HttpDownloader.h"
 
 namespace {
@@ -173,11 +174,24 @@ bool WeatherStore::fetchForecast() {
   filter["current"]["is_day"] = true;
   filter["daily"]["temperature_2m_max"][0] = true;
   filter["daily"]["temperature_2m_min"][0] = true;
+  filter["utc_offset_seconds"] = true;
   JsonDocument doc;
   const auto err = deserializeJson(doc, body, DeserializationOption::Filter(filter));
   if (err || doc["current"]["temperature_2m"].isNull()) {
     LOG_ERR("WX", "Forecast response not understood");
     return false;
+  }
+  // timezone=auto makes Open-Meteo resolve the city's zone; adopting its UTC
+  // offset fixes the device clock's local time (and DST shifts) without the
+  // user ever finding the quarter-hour offset setting.
+  if (!doc["utc_offset_seconds"].isNull()) {
+    const int32_t offsetSeconds = doc["utc_offset_seconds"] | 0;
+    const int32_t q = 48 + offsetSeconds / 900;
+    if (q >= 0 && q <= 104 && static_cast<uint8_t>(q) != SETTINGS.clockUtcOffsetQ) {
+      LOG_INF("WX", "Adopting UTC offset from weather location: %+d min", static_cast<int>(offsetSeconds / 60));
+      SETTINGS.clockUtcOffsetQ = static_cast<uint8_t>(q);
+      SETTINGS.saveToFile();
+    }
   }
   tempC10 = toTenths(doc["current"]["temperature_2m"] | 0.0f);
   code = doc["current"]["weather_code"] | static_cast<uint8_t>(0);

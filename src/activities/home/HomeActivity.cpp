@@ -15,6 +15,7 @@
 #include <cstring>
 #include <vector>
 
+#include "CalendarStore.h"
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "MappedInputManager.h"
@@ -123,6 +124,17 @@ void HomeActivity::onEnter() {
 
   const auto& metrics = UITheme::getInstance().getMetrics();
   loadRecentBooks(metrics.homeRecentBooksCount);
+  if (metrics.homeWidgetTiles) {
+    // Section slots (tile themes): without a Book section, the selector and
+    // Resume hint drop the book entry entirely.
+    const bool showsBook = SETTINGS.homeSection1 == CrossPointSettings::HOME_SECTION_BOOK ||
+                           SETTINGS.homeSection2 == CrossPointSettings::HOME_SECTION_BOOK;
+    if (!showsBook) recentBooks.clear();
+    if (SETTINGS.homeSection1 == CrossPointSettings::HOME_SECTION_CALENDAR ||
+        SETTINGS.homeSection2 == CrossPointSettings::HOME_SECTION_CALENDAR) {
+      CALENDAR.ensureLoaded();
+    }
+  }
 
   const auto base = static_cast<int>(recentBooks.size());
   selectorIndex = initialMenuItem == HomeMenuItem::NONE ? 0 : base + menuItemToIndex(initialMenuItem, hasOpdsServers);
@@ -405,17 +417,38 @@ void HomeActivity::render(RenderLock&&) {
     lastClockMinute = (HomeWidgets::showsClock() && halClock.getTime(hour, minute)) ? minute : 255;
   }
 
-  // Record the tile rect so storeCoverBuffer (called from the theme) knows
-  // which sub-region of the framebuffer to snapshot. ~16 KB in Portrait
-  // instead of the 48 KB full framebuffer the previous bind captured.
-  coverRectX = 0;
-  coverRectY = tileTop;
-  coverRectW = pageWidth;
-  coverRectH = metrics.homeCoverTileHeight;
+  // Section zones (tile themes): the fixed card slot plus the flexible strip
+  // above the bottom menu, each showing what its setting picks. Other themes
+  // keep the classic fixed card.
+  const bool sectioned = metrics.homeWidgetTiles && metrics.homeMenuAtBottom;
+  uint8_t section1 = sectioned ? SETTINGS.homeSection1 : CrossPointSettings::HOME_SECTION_BOOK;
+  uint8_t section2 = sectioned ? SETTINGS.homeSection2 : CrossPointSettings::HOME_SECTION_NONE;
+  if (section2 == section1) section2 = CrossPointSettings::HOME_SECTION_NONE;  // duplicates render once
 
-  GUI.drawRecentBookCover(renderer, Rect{0, tileTop, pageWidth, metrics.homeCoverTileHeight}, recentBooks,
-                          selectorIndex, coverRendered, coverBufferStored, bufferRestored,
-                          std::bind(&HomeActivity::storeCoverBuffer, this));
+  auto drawSection = [&](const uint8_t kind, const Rect& rect) {
+    switch (kind) {
+      case CrossPointSettings::HOME_SECTION_BOOK:
+        // Record the tile rect so storeCoverBuffer (called from the theme)
+        // knows which sub-region of the framebuffer to snapshot.
+        coverRectX = rect.x;
+        coverRectY = rect.y;
+        coverRectW = rect.width;
+        coverRectH = rect.height;
+        GUI.drawRecentBookCover(renderer, rect, recentBooks, selectorIndex, coverRendered, coverBufferStored,
+                                bufferRestored, std::bind(&HomeActivity::storeCoverBuffer, this));
+        break;
+      case CrossPointSettings::HOME_SECTION_ACTIVITY:
+        HomeWidgets::drawActivityPanel(renderer, rect);
+        break;
+      case CrossPointSettings::HOME_SECTION_CALENDAR:
+        HomeWidgets::drawCalendarPanel(renderer, rect);
+        break;
+      default:
+        break;
+    }
+  };
+
+  drawSection(section1, Rect{0, tileTop, pageWidth, metrics.homeCoverTileHeight});
 
   // Build menu items dynamically
   // A tab bar gets one-word labels; stacked rows keep the full names.
@@ -439,14 +472,13 @@ void HomeActivity::render(RenderLock&&) {
 
   const int menuTop = menuTopFor(tileTop);
 
-  // Tile themes pin the menu to the bottom; whatever is left between the book
-  // card and the menu becomes the reading-activity panel (skipped when the
-  // band squeezed it below a usable height).
-  if (metrics.homeWidgetTiles && metrics.homeMenuAtBottom) {
+  // The flexible strip between the card slot and the menu is section 2
+  // (skipped when the widget band squeezed it below a usable height).
+  if (sectioned) {
     const int panelTop = tileTop + metrics.homeCoverTileHeight + 12;
     const int panelHeight = menuTop - 12 - panelTop;
     if (panelHeight >= 64) {
-      HomeWidgets::drawActivityPanel(renderer, Rect{0, panelTop, pageWidth, panelHeight});
+      drawSection(section2, Rect{0, panelTop, pageWidth, panelHeight});
     }
   }
 

@@ -102,55 +102,68 @@ void CalendarScreen::render(GfxRenderer& renderer) {
     return;
   }
 
-  int32_t currentDay = -1;
-  int shown = 0;
+  // Day-structured view: every day in range gets its heading, whether or not
+  // anything is scheduled — an empty calendar still looks like a calendar.
   const int limitDays = std::clamp<int>(SETTINGS.calendarDays, 1, CalendarStore::WINDOW_DAYS);
-  for (uint8_t i = 0; i < CALENDAR.eventCount(); i++) {
-    const auto& e = CALENDAR.event(i);
-    if (e.endMinute() <= nowLocalMinute && !(e.allDay && e.startMinute / 1440 == static_cast<uint32_t>(today))) {
-      continue;  // already over
-    }
-    const int32_t day = static_cast<int32_t>(e.startMinute / 1440);
-    if (day - today >= limitDays) break;
-    if (day != currentDay) {
+  if (!CALENDAR.hasData()) {
+    renderer.drawText(UI_12_FONT_ID, SIDE, y, tr(STR_CAL_NOT_FETCHED), true, EpdFontFamily::BOLD);
+    y += eventLh + 4;
+    renderer.drawText(UI_10_FONT_ID, SIDE, y, tr(STR_CAL_FETCH_HINT), true);
+  } else {
+    uint8_t next = 0;
+    for (int d = 0; d < limitDays; d++) {
+      const int32_t day = today + d;
       if (y + dayLh + eventLh > bottom) break;
-      if (currentDay >= 0) y += DAY_GAP;
-      currentDay = day;
+      if (d > 0) y += DAY_GAP;
       char dayHeading[40];
       formatDayHeading(day, today, dayHeading, sizeof(dayHeading));
       renderer.drawText(UI_10_FONT_ID, SIDE, y, dayHeading, true, EpdFontFamily::BOLD);
       y += dayLh + 4;
       renderer.fillRectDither(SIDE, y, width - 2 * SIDE, 1, Color::DarkGray);
       y += 8;
+
+      int shownForDay = 0;
+      for (; next < CALENDAR.eventCount(); next++) {
+        const auto& e = CALENDAR.event(next);
+        if (e.endMinute() <= nowLocalMinute && !(e.allDay && e.startMinute / 1440 == static_cast<uint32_t>(today))) {
+          continue;  // already over
+        }
+        // An event still running from an earlier day files under today.
+        const int32_t eventDay = std::max<int32_t>(static_cast<int32_t>(e.startMinute / 1440), today);
+        if (eventDay != day) break;
+        if (y + eventLh > bottom) {
+          char more[24];
+          snprintf(more, sizeof(more), tr(STR_CAL_MORE), static_cast<unsigned>(CALENDAR.eventCount() - next));
+          renderer.drawText(SMALL_FONT_ID, SIDE, y, more, true);
+          y = bottom;
+          break;
+        }
+        // Start time only: a start-end range does not fit TIME_COLUMN in the UI font.
+        char timeText[24];
+        if (e.allDay) {
+          snprintf(timeText, sizeof(timeText), "%s", tr(STR_CAL_ALL_DAY));
+        } else {
+          formatClock(e.startMinute, timeText, sizeof(timeText));
+        }
+        const bool now = !e.allDay && e.startMinute <= nowLocalMinute && e.endMinute() > nowLocalMinute;
+        if (now) {
+          // Happening-now marker: a small ink bar in the left margin.
+          renderer.fillRoundedRect(SIDE - 12, y + 3, 4, eventLh - 6, 2, Color::Black);
+        }
+        renderer.drawText(UI_10_FONT_ID, SIDE, y + (eventLh - dayLh) / 2, timeText, true,
+                          now ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
+        const int textX = SIDE + TIME_COLUMN;
+        const std::string title = renderer.truncatedText(UI_12_FONT_ID, e.summary, width - SIDE - textX);
+        renderer.drawText(UI_12_FONT_ID, textX, y, title.c_str(), true,
+                          now ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
+        y += eventLh + EVENT_GAP;
+        shownForDay++;
+      }
+      if (shownForDay == 0 && y + dayLh <= bottom) {
+        renderer.drawText(UI_10_FONT_ID, SIDE, y, tr(STR_CAL_FREE), true);
+        y += dayLh + EVENT_GAP;
+      }
     }
-    if (y + eventLh > bottom) {
-      char more[24];
-      snprintf(more, sizeof(more), tr(STR_CAL_MORE), static_cast<unsigned>(CALENDAR.eventCount() - i));
-      renderer.drawText(SMALL_FONT_ID, SIDE, y, more, true);
-      break;
-    }
-    // Start time only: a start-end range does not fit TIME_COLUMN in the UI font.
-    char timeText[24];
-    if (e.allDay) {
-      snprintf(timeText, sizeof(timeText), "%s", tr(STR_CAL_ALL_DAY));
-    } else {
-      formatClock(e.startMinute, timeText, sizeof(timeText));
-    }
-    const bool now = !e.allDay && e.startMinute <= nowLocalMinute && e.endMinute() > nowLocalMinute;
-    if (now) {
-      // Happening-now marker: a small ink bar in the left margin.
-      renderer.fillRoundedRect(SIDE - 12, y + 3, 4, eventLh - 6, 2, Color::Black);
-    }
-    renderer.drawText(UI_10_FONT_ID, SIDE, y + (eventLh - dayLh) / 2, timeText, true,
-                      now ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
-    const int textX = SIDE + TIME_COLUMN;
-    const std::string title = renderer.truncatedText(UI_12_FONT_ID, e.summary, width - SIDE - textX);
-    renderer.drawText(UI_12_FONT_ID, textX, y, title.c_str(), true, now ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
-    y += eventLh + EVENT_GAP;
-    shown++;
-  }
-  if (shown == 0) {
-    renderer.drawText(UI_12_FONT_ID, SIDE, y, tr(STR_CAL_NOTHING), true);
   }
 
   renderer.setOrientation(savedOrientation);

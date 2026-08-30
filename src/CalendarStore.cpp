@@ -89,6 +89,12 @@ class IcsParser {
   size_t lineLen = 0;
   bool pendingNewline = false;
 
+ public:
+  // False when the payload never contained a calendar marker — the URL served
+  // something else (a login or calendar web page instead of the secret .ics).
+  bool sawCalendar = false;
+
+ private:
   bool inEvent = false;
   DateTime dtStart, dtEnd;
   int32_t durationMinutes = -1;
@@ -209,6 +215,7 @@ class IcsParser {
     const char* name = line;
 
     if (strcmp(name, "BEGIN") == 0) {
+      if (strcmp(value, "VCALENDAR") == 0) sawCalendar = true;
       if (strcmp(value, "VEVENT") == 0) {
         inEvent = true;
         resetEvent();
@@ -458,6 +465,15 @@ CalendarStore::RefreshResult CalendarStore::refresh(const uint32_t nowEpoch, con
     count = keptCount;
     saveToFile();
     return RefreshResult::FetchFailed;
+  }
+  if (!parser.sawCalendar) {
+    // The server answered, but not with a calendar: almost always a pasted
+    // web-page link instead of the "secret address in iCal format".
+    LOG_ERR("CAL", "Response is not an iCal feed (%u bytes)", static_cast<unsigned>(received));
+    memcpy(events, kept, sizeof(events));
+    count = keptCount;
+    saveToFile();
+    return RefreshResult::NotICal;
   }
   fetchedAt = nowEpoch;
   saveToFile();

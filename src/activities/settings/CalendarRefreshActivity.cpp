@@ -34,14 +34,13 @@ void CalendarRefreshActivity::onEnter() {
   }
 
   shouldTearDownWifiOnExit = true;
-  startActivityForResult(
-      std::make_unique<WifiSelectionActivity>(renderer, mappedInput, /*autoConnect=*/true),
-      [this](const ActivityResult& result) {
-        if (result.isCancelled || WiFi.status() != WL_CONNECTED) {
-          state = FAILED;
-        }
-        requestUpdate();
-      });
+  startActivityForResult(std::make_unique<WifiSelectionActivity>(renderer, mappedInput, /*autoConnect=*/true),
+                         [this](const ActivityResult& result) {
+                           if (result.isCancelled || WiFi.status() != WL_CONNECTED) {
+                             state = FAILED;
+                           }
+                           requestUpdate();
+                         });
 }
 
 void CalendarRefreshActivity::onExit() {
@@ -62,6 +61,9 @@ void CalendarRefreshActivity::runSync() {
       break;
     case CalendarStore::RefreshResult::NoUrl:
       state = NO_URL;
+      break;
+    case CalendarStore::RefreshResult::NotICal:
+      state = NOT_ICAL;
       break;
     default:
       state = FAILED;
@@ -104,6 +106,17 @@ void CalendarRefreshActivity::render(RenderLock&&) {
     case NO_URL:
       renderer.drawCenteredText(UI_12_FONT_ID, midY - 20, tr(STR_CAL_NO_URL), true, EpdFontFamily::BOLD);
       break;
+    case NOT_ICAL: {
+      renderer.drawCenteredText(UI_12_FONT_ID, midY - 40, tr(STR_CAL_FAILED), true, EpdFontFamily::BOLD);
+      const auto lines = renderer.wrappedText(UI_10_FONT_ID, tr(STR_CAL_NOT_ICAL), pageWidth - 80, 3);
+      int y = midY - 5;
+      for (const auto& line : lines) {
+        const int w = renderer.getTextWidth(UI_10_FONT_ID, line.c_str());
+        renderer.drawText(UI_10_FONT_ID, (pageWidth - w) / 2, y, line.c_str(), true);
+        y += renderer.getLineHeight(UI_10_FONT_ID);
+      }
+      break;
+    }
     case FAILED:
       renderer.drawCenteredText(UI_12_FONT_ID, midY - 20, tr(STR_CAL_FAILED), true, EpdFontFamily::BOLD);
       renderer.drawCenteredText(UI_10_FONT_ID, midY + 10, tr(STR_CHECK_SERIAL_OUTPUT));

@@ -291,6 +291,16 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // up anyway. On wake: also bring Wi-Fi up at boot when the data is old.
   enum WEATHER_AUTO_REFRESH { WEATHER_REFRESH_MANUAL = 0, WEATHER_REFRESH_ON_WAKE = 1, WEATHER_AUTO_REFRESH_COUNT };
 
+  // The two big home-screen sections on tile themes (top: fixed card slot,
+  // bottom: the flexible strip above the menu). Persisted by value.
+  enum HOME_SECTION {
+    HOME_SECTION_BOOK = 0,
+    HOME_SECTION_ACTIVITY = 1,
+    HOME_SECTION_CALENDAR = 2,
+    HOME_SECTION_NONE = 3,
+    HOME_SECTION_COUNT
+  };
+
   // Calendar sleep screen: how many upcoming days to list.
   enum CAL_DAYS { CAL_DAYS_TODAY = 0, CAL_DAYS_3 = 1, CAL_DAYS_WEEK = 2, CAL_DAYS_COUNT };
   // Refresh cadence while the Calendar sleep screen is up. Anything but Off
@@ -402,6 +412,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // Settings files written before this fork carry uiTheme=Lyra by default;
   // the first load switches them to Mono once (see fromJson).
   uint8_t forkThemeMigrated = 0;
+  uint8_t forkUnitMigrated = 0;
   // Sunlight fading compensation
   uint8_t fadingFix = 0;
   // Power button return from footnotes (1 = enabled, 0 = disabled)
@@ -491,11 +502,13 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t homeWidget2 = HW_TODAY;
   uint8_t homeWidget3 = HW_STREAK;
   uint8_t homeWidget4 = HW_NONE;
-  uint8_t weatherUnit = WEATHER_CELSIUS;
+  uint8_t weatherUnit = WEATHER_FAHRENHEIT;
   uint8_t weatherAutoRefresh = WEATHER_REFRESH_MANUAL;
   // Calendar sleep screen: upcoming days listed (real day count, 1..7).
+  uint8_t homeSection1 = HOME_SECTION_BOOK;
+  uint8_t homeSection2 = HOME_SECTION_ACTIVITY;
   uint8_t calendarDays = 3;
-  uint8_t calendarSleepRefresh = CAL_REFRESH_10M;
+  uint8_t calendarSleepRefresh = CAL_REFRESH_30M;
   // Pomodoro lengths in minutes, edited inside the Focus Timer activity.
   uint8_t pomodoroFocusMin = 25;
   uint8_t pomodoroBreakMin = 5;

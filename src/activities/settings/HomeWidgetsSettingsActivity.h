@@ -11,7 +11,7 @@ class HomeWidgetsSettingsActivity final : public UiListActivity {
  public:
   HomeWidgetsSettingsActivity(GfxRenderer& renderer, MappedInputManager& mappedInput);
 
-  static constexpr int ITEM_COUNT = 9;
+  static constexpr int ITEM_COUNT = 11;
 
   void onEnter() override;
   void render(RenderLock&&) override;

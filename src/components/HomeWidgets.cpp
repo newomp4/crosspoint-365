@@ -11,6 +11,7 @@
 #include <cstring>
 #include <string>
 
+#include "CalendarStore.h"
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "ReadingStats.h"
@@ -469,5 +470,81 @@ void HomeWidgets::drawActivityPanel(const GfxRenderer& renderer, const Rect& rec
       // Today marker under the rightmost bar.
       renderer.fillRoundedRect(bx + barWidth / 2 - 2, chartBottom + 4, 4, 4, 2, Color::Black);
     }
+  }
+}
+
+// Upcoming events from the calendar feed on a widget-style card: one line per
+// event ("Today 2:00p  Coffee with Sam"), as many as the slot fits.
+void HomeWidgets::drawCalendarPanel(const GfxRenderer& renderer, const Rect& rect) {
+  const auto& metrics = UITheme::getInstance().getMetrics();
+  const int side = metrics.contentSidePadding;
+  const int x = rect.x + side;
+  const int width = rect.width - 2 * side;
+  renderer.fillRoundedRect(x, rect.y, width, rect.height, TILE_RADIUS, Color::LightGray);
+
+  CALENDAR.ensureLoaded();
+  const int captionLine = renderer.getLineHeight(CAPTION_FONT);
+  renderer.drawText(CAPTION_FONT, x + TILE_PAD + 2, rect.y + TILE_PAD, tr(STR_CALENDAR), true);
+
+  int y = rect.y + TILE_PAD + captionLine + 8;
+  const int bottom = rect.y + rect.height - TILE_PAD;
+  const int lineHeight = renderer.getLineHeight(UI_12_FONT_ID);
+  const int textX = x + TILE_PAD + 2;
+  const int textWidth = width - 2 * (TILE_PAD + 2);
+
+  if (!CALENDAR.hasUrl() || !CALENDAR.hasData()) {
+    renderer.drawText(UI_10_FONT_ID, textX, y, CALENDAR.hasUrl() ? tr(STR_CAL_NOT_FETCHED) : tr(STR_CAL_SETUP_SHORT),
+                      true);
+    return;
+  }
+
+  const CalendarDate date = CalendarDate::today();
+  const int32_t today = date.valid ? date.epochDay() : 0;
+  const int32_t offsetMinutes = (static_cast<int32_t>(SETTINGS.clockUtcOffsetQ) - 48) * 15;
+  const uint32_t nowLocalMinute = halClock.getEpochSeconds() / 60 + offsetMinutes;
+
+  int shown = 0;
+  for (uint8_t i = 0; i < CALENDAR.eventCount() && y + lineHeight <= bottom; i++) {
+    const auto& e = CALENDAR.event(i);
+    if (e.endMinute() <= nowLocalMinute && !(e.allDay && e.startMinute / 1440 == static_cast<uint32_t>(today))) {
+      continue;
+    }
+    const int32_t day = std::max<int32_t>(static_cast<int32_t>(e.startMinute / 1440), today);
+    char when[24];
+    const char* dayWord = day == today ? tr(STR_CAL_TODAY) : day == today + 1 ? tr(STR_CAL_TOMORROW) : nullptr;
+    char clock[12] = "";
+    if (!e.allDay) {
+      const unsigned hour24 = (e.startMinute / 60) % 24;
+      const unsigned minute = e.startMinute % 60;
+      if (SETTINGS.clockFormat == 1) {
+        unsigned hour12 = hour24 % 12;
+        if (hour12 == 0) hour12 = 12;
+        snprintf(clock, sizeof(clock), "%u:%02u%s", hour12, minute, hour24 >= 12 ? "p" : "a");
+      } else {
+        snprintf(clock, sizeof(clock), "%02u:%02u", hour24, minute);
+      }
+    }
+    if (dayWord != nullptr) {
+      snprintf(when, sizeof(when), "%s %s", dayWord, clock);
+    } else {
+      uint16_t yy;
+      uint8_t mm, dd;
+      CivilDate::civilFromDays(day, yy, mm, dd);
+      snprintf(when, sizeof(when), "%u/%u %s", static_cast<unsigned>(mm), static_cast<unsigned>(dd), clock);
+    }
+    const bool now = !e.allDay && e.startMinute <= nowLocalMinute && e.endMinute() > nowLocalMinute;
+    renderer.drawText(UI_10_FONT_ID, textX, y + (lineHeight - renderer.getLineHeight(UI_10_FONT_ID)) / 2, when, true,
+                      now ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
+    // Column sized to the widest "when" this font can produce ("Tomorrow" plus
+    // a 12-hour time), so titles never overlap the times.
+    const int whenWidth = std::max(renderer.getTextWidth(UI_10_FONT_ID, when) + 12, 120);
+    const std::string title = renderer.truncatedText(UI_12_FONT_ID, e.summary, textWidth - whenWidth);
+    renderer.drawText(UI_12_FONT_ID, textX + whenWidth, y, title.c_str(), true,
+                      now ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
+    y += lineHeight + 6;
+    shown++;
+  }
+  if (shown == 0) {
+    renderer.drawText(UI_10_FONT_ID, textX, y, tr(STR_CAL_NOTHING), true);
   }
 }

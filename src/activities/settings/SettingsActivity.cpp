@@ -71,7 +71,6 @@ void SettingsActivity::rebuildSettingsLists() {
       // The dot-grid sleep screens get their editor right under the mode that
       // selects them, and only while it is selected.
       if (setting.valuePtr == &CrossPointSettings::sleepScreen) {
-        displaySettings.push_back(SettingInfo::Action(StrId::STR_SLEEP_PREVIEW, SettingAction::SleepPreview));
         if (SETTINGS.sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::YEAR_PROGRESS) {
           displaySettings.push_back(
               SettingInfo::Action(StrId::STR_YEAR_PROGRESS_SETTINGS, SettingAction::YearProgress));
@@ -295,6 +294,20 @@ void SettingsActivity::toggleCurrentSetting() {
     return;
   }
 
+  if (setting.valuePtr == &CrossPointSettings::sleepScreen) {
+    // The mode list IS the preview: the row opens the full-screen picker
+    // (Left/Right page the modes live, Confirm keeps the shown one).
+    startActivityForResult(std::make_unique<SleepScreenPickerActivity>(renderer, mappedInput),
+                           [this](const ActivityResult&) {
+                             syncQuickResumeTimeoutForSleepScreen(/*sleepScreenChanged=*/true,
+                                                                  /*quickResumeTimeoutChanged=*/false);
+                             SETTINGS.saveToFile();
+                             rebuildSettingsLists();
+                             requestUpdate();
+                           });
+    return;
+  }
+
   if (setting.type == SettingType::TOGGLE && setting.valuePtr != nullptr) {
     // Toggle the boolean value using the member pointer
     const bool currentValue = SETTINGS.*(setting.valuePtr);
@@ -413,19 +426,6 @@ void SettingsActivity::toggleCurrentSetting() {
         break;
       case SettingAction::CalendarSettings:
         startActivityForResult(std::make_unique<CalendarSettingsActivity>(renderer, mappedInput), resultHandler);
-        break;
-      case SettingAction::SleepPreview:
-        // The picker edits sleepScreen directly: run the same follow-ups the
-        // enum row runs — quick-resume timeout coupling and the rebuild that
-        // surfaces the mode's conditional editor row.
-        startActivityForResult(std::make_unique<SleepScreenPickerActivity>(renderer, mappedInput),
-                               [this](const ActivityResult&) {
-                                 syncQuickResumeTimeoutForSleepScreen(/*sleepScreenChanged=*/true,
-                                                                      /*quickResumeTimeoutChanged=*/false);
-                                 SETTINGS.saveToFile();
-                                 rebuildSettingsLists();
-                                 requestUpdate();
-                               });
         break;
       case SettingAction::None:
         // Do nothing

@@ -3,6 +3,7 @@
 #include <ArduinoJson.h>
 #include <BoardConfig.h>
 #include <FsHelpers.h>
+#include <HalClock.h>
 #include <HalGPIO.h>
 #include <HalStorage.h>
 #include <Logging.h>
@@ -1189,7 +1190,32 @@ void CrossPointWebServer::handlePostCalendar() {
   }
   CALENDAR.setFeedUrl(url.c_str());
   LOG_INF("WEB", "Calendar URL %s via web", url.length() ? "set" : "cleared");
-  server->send(200, "text/plain", "ok");
+
+  // Fetch immediately while Wi-Fi is up serving this request, so the page can
+  // tell the user whether the link actually works — the whole failure mode of
+  // a pasted web-page URL surfaces right here instead of on the device later.
+  JsonDocument doc;
+  doc["saved"] = true;
+  if (url.length() > 0) {
+    const int32_t offsetMinutes = (static_cast<int32_t>(SETTINGS.clockUtcOffsetQ) - 48) * 15;
+    switch (CALENDAR.refresh(halClock.getEpochSeconds(), offsetMinutes)) {
+      case CalendarStore::RefreshResult::Ok:
+        doc["fetched"] = true;
+        doc["events"] = CALENDAR.eventCount();
+        break;
+      case CalendarStore::RefreshResult::NotICal:
+        doc["fetched"] = false;
+        doc["error"] = "not_ical";
+        break;
+      default:
+        doc["fetched"] = false;
+        doc["error"] = "fetch_failed";
+        break;
+    }
+  }
+  std::string out;
+  serializeJson(doc, out);
+  server->send(200, "application/json", out.c_str());
 }
 
 void CrossPointWebServer::handleGetSettings() const {
