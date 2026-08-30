@@ -61,6 +61,8 @@ std::string hostOf(const std::string& url) {
 // "h<hop> <host> <what>" — host clipped so the line fits a small screen.
 void noteError(const int hop, const std::string& url, const char* fmt, const int a = 0, const int b = 0) {
   char what[32];
+  // Extra args for the plain-string messages are defined to be ignored.
+  // cppcheck-suppress wrongPrintfScanfArgNum
   snprintf(what, sizeof(what), fmt, a, b);
   snprintf(s_lastError, sizeof(s_lastError), "h%d %s %s", hop + 1, hostOf(url).c_str(), what);
 }

@@ -328,6 +328,7 @@ class IcsParser {
     uint16_t startYear;
     uint8_t startMonth, startDom;
     CivilDate::civilFromDays(day, startYear, startMonth, startDom);
+    int monthsFromStart = 0;
     for (int guard = 0; guard < 2000; guard++) {
       if (strcmp(freq, "WEEKLY") == 0) {
         // Each week: every masked weekday in the week that holds `day`.
@@ -354,15 +355,20 @@ class IcsParser {
       if (strcmp(freq, "DAILY") == 0) {
         day += interval;
       } else if (strcmp(freq, "MONTHLY") == 0 || strcmp(freq, "YEARLY") == 0) {
-        // Same day-of-month N months (or years) on; skip months too short for it.
-        int months = (strcmp(freq, "MONTHLY") == 0 ? interval : 12 * interval) * (guard + 1);
-        int y = startYear, m = startMonth + months;
-        y += (m - 1) / 12;
-        m = (m - 1) % 12 + 1;
-        if (startDom > CivilDate::daysInMonth(static_cast<uint16_t>(y), static_cast<uint8_t>(m))) {
-          day = CivilDate::daysFromCivil(y, m, 1) + 40;  // lands past this month; loop advances
-          continue;
+        // Advance to the next month (or year) that has this day-of-month,
+        // hopping over months too short for it (a Jan-31 monthly event skips
+        // February) without ever emitting a stand-in date.
+        const int step = strcmp(freq, "MONTHLY") == 0 ? interval : 12 * interval;
+        monthsFromStart += step;
+        int hops = 0;
+        while (startDom >
+               CivilDate::daysInMonth(static_cast<uint16_t>(startYear + (startMonth + monthsFromStart - 1) / 12),
+                                      static_cast<uint8_t>((startMonth + monthsFromStart - 1) % 12 + 1))) {
+          if (++hops > 60) return;  // >5 years without this date: past any window
+          monthsFromStart += step;
         }
+        const int y = startYear + (startMonth + monthsFromStart - 1) / 12;
+        const int m = (startMonth + monthsFromStart - 1) % 12 + 1;
         day = CivilDate::daysFromCivil(y, m, startDom);
       } else {
         return;  // unsupported FREQ (SECONDLY/MINUTELY/HOURLY): first occurrence only

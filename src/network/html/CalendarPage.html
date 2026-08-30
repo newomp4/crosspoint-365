@@ -153,6 +153,9 @@ function buildIcs() {
           } else if (d.fetched) {
             status.className = "status ok";
             status.textContent = "Saved \u2014 fetched " + d.events + " upcoming event" + (d.events === 1 ? "" : "s") + " \u2713";
+          } else if (d.error === "no_wifi") {
+            status.className = "status ok";
+            status.textContent = "Saved. The reader is in hotspot mode without internet, so the link wasn't tested — it fetches on the next calendar update.";
           } else if (d.error === "not_ical") {
             status.className = "status err";
             status.textContent = "Saved, but that link doesn't return calendar data. Copy the \u201cSecret address in iCal format\u201d \u2014 not the calendar's web link.";

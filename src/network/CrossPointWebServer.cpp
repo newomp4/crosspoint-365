@@ -1208,6 +1208,11 @@ void CrossPointWebServer::handlePostCalendar() {
         doc["fetched"] = false;
         doc["error"] = "not_ical";
         break;
+      case CalendarStore::RefreshResult::NoWifi:
+        // Hotspot mode: no internet to test the link with. Not a link failure.
+        doc["fetched"] = false;
+        doc["error"] = "no_wifi";
+        break;
       default:
         doc["fetched"] = false;
         doc["error"] = "fetch_failed";

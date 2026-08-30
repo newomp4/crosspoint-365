@@ -90,10 +90,11 @@ void WeatherStore::ensureLoaded() {
 
 void WeatherStore::setLocationQuery(const char* text) {
   ensureLoaded();
-  while (text && (*text == ' ' || *text == '\n' || *text == '\t')) text++;
+  while (text && (*text == ' ' || *text == '\n' || *text == '\r' || *text == '\t')) text++;
   copyField(query, text, sizeof(query));
   size_t n = strlen(query);
-  while (n > 0 && (query[n - 1] == ' ' || query[n - 1] == '\n' || query[n - 1] == '\t')) query[--n] = '\0';
+  while (n > 0 && (query[n - 1] == ' ' || query[n - 1] == '\n' || query[n - 1] == '\r' || query[n - 1] == '\t'))
+    query[--n] = '\0';
   if (strcmp(query, resolvedQuery) != 0) {
     // New place: forget the old coordinates and conditions.
     resolvedQuery[0] = '\0';

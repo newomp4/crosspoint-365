@@ -301,6 +301,19 @@ static bool loadSleepFrameBuffer() {
   return true;
 }
 
+// The calendar loop's only exit into a running UI. enterDeepSleep() latched
+// deepSleepInProgress before entering the loop, and silentRestart*() no-op
+// while it is set — lift it first: this reboot *replaces* the pending deep
+// sleep, it does not race one.
+static void wakeFromCalendarSleepLoop() {
+  deepSleepInProgress = false;
+  if (APP_STATE.lastSleepFromReader && !APP_STATE.openEpubPath.empty()) {
+    silentRestartToReader();
+  } else {
+    silentRestart();
+  }
+}
+
 // While the Calendar sleep screen is up (URL set, cadence not Off), the
 // device holds in timed light sleep instead of powering down: the X3 cuts
 // battery power in deep sleep, so a deep-sleep timer could never fire there.
@@ -378,12 +391,8 @@ void maybeRunCalendarSleepLoop() {
       const int pressedLevel = activeHigh ? HIGH : LOW;
       if (digitalRead(powerPin) != pressedLevel) continue;
       LOG_INF("CAL", "Power button wake from calendar loop");
-      if (APP_STATE.lastSleepFromReader && !APP_STATE.openEpubPath.empty()) {
-        silentRestartToReader();
-      } else {
-        silentRestart();
-      }
-      return;  // not reached; silentRestart reboots
+      wakeFromCalendarSleepLoop();
+      return;  // not reached; wakeFromCalendarSleepLoop reboots
     }
     gpio_wakeup_disable(powerGpio);
 
@@ -402,11 +411,7 @@ void maybeRunCalendarSleepLoop() {
         LOG_INF("CAL", "Power button during refresh; waking");
         WiFi.disconnect(true);
         WiFi.mode(WIFI_OFF);
-        if (APP_STATE.lastSleepFromReader && !APP_STATE.openEpubPath.empty()) {
-          silentRestartToReader();
-        } else {
-          silentRestart();
-        }
+        wakeFromCalendarSleepLoop();
       }
       connected = WiFi.status() == WL_CONNECTED;
       delay(100);
