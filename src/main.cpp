@@ -419,7 +419,25 @@ void maybeRunCalendarSleepLoop() {
     const int32_t offsetMinutes = (static_cast<int32_t>(SETTINGS.clockUtcOffsetQ) - 48) * 15;
     if (CALENDAR.refresh(halClock.getEpochSeconds(), offsetMinutes) == CalendarStore::RefreshResult::Ok) {
       failStreak = 0;
-      CalendarScreen::render(renderer);
+      // Repaint only when what the screen would show changed: same events,
+      // same day, same now-running event means the panel is already right,
+      // and skipping the ~2s HALF refresh trims the wake.
+      const uint32_t nowLocalMinute = halClock.getEpochSeconds() / 60 + offsetMinutes;
+      uint32_t hash = 2166136261u;
+      const auto mix = [&hash](const uint32_t v) { hash = (hash ^ v) * 16777619u; };
+      mix(static_cast<uint32_t>(nowLocalMinute / 1440));
+      for (uint8_t i = 0; i < CALENDAR.eventCount(); i++) {
+        const auto& e = CALENDAR.event(i);
+        mix(e.startMinute);
+        mix(e.durationMinutes);
+        for (const char* c = e.summary; *c; c++) mix(static_cast<uint8_t>(*c));
+        mix(e.startMinute <= nowLocalMinute && e.endMinute() > nowLocalMinute ? 1u : 0u);
+      }
+      static uint32_t lastRenderedHash = 0;
+      if (hash != lastRenderedHash) {
+        lastRenderedHash = hash;
+        CalendarScreen::render(renderer);
+      }
     } else {
       failStreak++;
     }
@@ -863,6 +881,12 @@ void loop() {
 #endif
 
   POMODORO.update();
+  // A phase that flips while reading repaints the page so the status-bar chip
+  // announces it now, not at the next page turn. Off-reader screens keep their
+  // pending flash for the Focus screen to consume.
+  if (activityManager.isReaderActivity() && POMODORO.consumePhaseEnd() != PomodoroTimer::Phase::Idle) {
+    activityManager.requestUpdate(false);
+  }
   // Reading is long idle gaps between page turns: downclock quickly there for
   // battery. Everywhere else the grace is long enough that navigation never
   // runs at reduced speed (the C3 drops to 10 MHz).

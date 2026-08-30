@@ -2,6 +2,7 @@
 #include <ArduinoJson.h>
 #include <PersistableStore.h>
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -10,6 +11,7 @@ struct RecentBook {
   std::string title;
   std::string author;
   std::string coverBmpPath;
+  uint8_t progressPercent = 255;  // 0..100; 255 = not recorded yet
 
   bool operator==(const RecentBook& other) const { return path == other.path; }
 };
@@ -41,6 +43,8 @@ class RecentBooksStore : public PersistableStore<RecentBooksStore> {
   // Returns true if an entry was found and removed (no-op + false otherwise).
   // Persistence is best-effort: a failed save is logged, not reflected in the return.
   bool removeByPath(const std::string& path);
+  // Stamp reading progress for the home card; persists only when it changed.
+  void setProgress(const std::string& path, uint8_t percent);
 
   // Repoint an entry's path (and coverBmpPath, if it lived under the old cache dir) after the
   // backing file and cache dir were moved on disk. No-op if no entry matches oldPath.

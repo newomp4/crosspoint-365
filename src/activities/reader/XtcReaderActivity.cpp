@@ -12,6 +12,7 @@
 #include "ProgressFile.h"
 #include "ReaderActivity.h"
 #include "ReaderUtils.h"
+#include "RecentBooksStore.h"
 #include "XtcReaderChapterSelectionActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -334,6 +335,12 @@ void XtcReaderActivity::saveProgress() const {
   data[3] = (currentPage >> 24) & 0xFF;
   if (!ProgressFile::writeAtomic(xtc->getCachePath(), data, sizeof(data))) {
     LOG_ERR("XTC", "Failed to save progress: page %lu", currentPage);
+    return;
+  }
+  const uint32_t pageCount = xtc->getPageCount();
+  if (pageCount > 0) {
+    const uint32_t clamped = currentPage < pageCount ? currentPage : pageCount - 1;
+    RECENT_BOOKS.setProgress(xtc->getPath(), static_cast<uint8_t>(xtc->calculateProgress(clamped)));
   }
 }
 

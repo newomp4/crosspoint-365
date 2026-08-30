@@ -1443,7 +1443,13 @@ bool EpubReaderActivity::saveProgress(int spineIndex, int currentPage, int pageC
                  ? currentPageVisibleOffset
                  : section->getVisibleTextOffsetForPage(static_cast<uint16_t>(currentPage));
   }
-  return EpubReaderUtils::saveProgress(*epub, spineIndex, currentPage, pageCount, offset);
+  const bool ok = EpubReaderUtils::saveProgress(*epub, spineIndex, currentPage, pageCount, offset);
+  if (ok && epub) {
+    const float chapterProg = pageCount > 0 ? static_cast<float>(currentPage) / pageCount : 0.0f;
+    const int percent = static_cast<int>(epub->calculateProgress(spineIndex, chapterProg) * 100.0f + 0.5f);
+    RECENT_BOOKS.setProgress(epub->getPath(), static_cast<uint8_t>(std::clamp(percent, 0, 100)));
+  }
+  return ok;
 }
 
 void EpubReaderActivity::rememberCurrentContentOffset() {

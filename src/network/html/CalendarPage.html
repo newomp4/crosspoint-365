@@ -46,6 +46,71 @@
         </ol>
       </div>
 
+      <div class="card">
+        <details>
+          <summary style="font-weight:600;cursor:pointer">Organization account, or network blocks Google scripts?</summary>
+          <ol style="margin-top:10px">
+            <li>Create a GitHub token: open <b>github.com/settings/tokens/new?scopes=gist</b>, click <b>Generate token</b>, copy it.</li>
+            <li>At <b>script.google.com</b>, replace your project's code with the script below and paste your token into the first line.</li>
+            <li>Pick <b>setup</b> in the function dropdown, press <b>Run</b>, approve the popups, then copy the link printed in the log.</li>
+            <li>Add a trigger (clock icon): function <b>pushCalendar</b>, time-driven, every <b>15 minutes</b>.</li>
+            <li>Paste the copied link into the box above and Save.</li>
+          </ol>
+          <button id="copyScript" type="button">Copy the script</button>
+          <span class="status" id="copyStatus"></span>
+          <pre id="bridgeScript" style="display:none">const GITHUB_TOKEN = "PASTE_YOUR_TOKEN_HERE";
+
+function setup() {
+  const r = UrlFetchApp.fetch("https://api.github.com/gists", {
+    method: "post",
+    headers: { Authorization: "Bearer " + GITHUB_TOKEN },
+    contentType: "application/json",
+    payload: JSON.stringify({ description: "CrossPoint calendar", public: false,
+      files: { "calendar.ics": { content: buildIcs() } } })
+  });
+  const d = JSON.parse(r.getContentText());
+  PropertiesService.getScriptProperties().setProperty("GIST_ID", d.id);
+  Logger.log("PASTE THIS INTO THE READER: https://gist.githubusercontent.com/" + d.owner.login + "/" + d.id + "/raw/calendar.ics");
+}
+
+function pushCalendar() {
+  const id = PropertiesService.getScriptProperties().getProperty("GIST_ID");
+  if (!id) return;
+  UrlFetchApp.fetch("https://api.github.com/gists/" + id, {
+    method: "patch",
+    headers: { Authorization: "Bearer " + GITHUB_TOKEN },
+    contentType: "application/json",
+    payload: JSON.stringify({ files: { "calendar.ics": { content: buildIcs() } } })
+  });
+}
+
+function buildIcs() {
+  const cal = CalendarApp.getDefaultCalendar();
+  const now = new Date();
+  const end = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  const events = cal.getEvents(now, end);
+  const fmt = d =&gt; Utilities.formatDate(d, "UTC", "yyyyMMdd'T'HHmmss'Z'");
+  const fmtDay = d =&gt; Utilities.formatDate(d, cal.getTimeZone(), "yyyyMMdd");
+  let out = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//CrossPoint bridge//EN\r\n";
+  for (const e of events) {
+    out += "BEGIN:VEVENT\r\n";
+    if (e.isAllDayEvent()) {
+      out += "DTSTART;VALUE=DATE:" + fmtDay(e.getAllDayStartDate()) + "\r\n";
+      out += "DTEND;VALUE=DATE:" + fmtDay(e.getAllDayEndDate()) + "\r\n";
+    } else {
+      out += "DTSTART:" + fmt(e.getStartTime()) + "\r\n";
+      out += "DTEND:" + fmt(e.getEndTime()) + "\r\n";
+    }
+    out += "SUMMARY:" + e.getTitle().replace(/([\\;,])/g, "\\$1").replace(/\n/g, "\\n") + "\r\n";
+    out += "UID:" + e.getId() + "\r\n";
+    out += "END:VEVENT\r\n";
+  }
+  out += "END:VCALENDAR\r\n";
+  return out;
+}</pre>
+        </details>
+      </div>
+
       <p><a class="back" href="/">&larr; Back to home</a></p>
     </div>
 
@@ -100,6 +165,16 @@
           status.className = "status err";
           status.textContent = "Saving failed — is the reader still on this network?";
         }
+      });
+
+      document.getElementById("copyScript").addEventListener("click", async () => {
+        const el = document.createElement("textarea");
+        el.value = document.getElementById("bridgeScript").textContent;
+        document.body.appendChild(el);
+        el.select();
+        try { document.execCommand("copy"); document.getElementById("copyStatus").textContent = " Copied."; }
+        catch (e) { document.getElementById("copyStatus").textContent = " Select and copy manually."; }
+        document.body.removeChild(el);
       });
 
       load();

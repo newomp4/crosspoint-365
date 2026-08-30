@@ -17,6 +17,7 @@ void RecentBooksStore::toJson(JsonDocument& doc) const {
     obj["title"] = book.title;
     obj["author"] = book.author;
     obj["coverBmpPath"] = book.coverBmpPath;
+    if (book.progressPercent <= 100) obj["progress"] = book.progressPercent;
   }
 }
 
@@ -30,6 +31,7 @@ bool RecentBooksStore::fromJson(JsonVariantConst doc) {
     if (getCount() >= MAX_RECENT_BOOKS) break;
     RecentBook book;
     book.path = obj["path"] | "";
+    book.progressPercent = obj["progress"] | static_cast<uint8_t>(255);
     book.title = obj["title"] | "";
     book.author = obj["author"] | "";
     book.coverBmpPath = obj["coverBmpPath"] | "";
@@ -60,6 +62,14 @@ void RecentBooksStore::addBook(const std::string& path, const std::string& title
     recentBooks.resize(MAX_RECENT_BOOKS);
   }
 
+  saveToFile();
+}
+
+void RecentBooksStore::setProgress(const std::string& path, const uint8_t percent) {
+  auto it =
+      std::find_if(recentBooks.begin(), recentBooks.end(), [&](const RecentBook& book) { return book.path == path; });
+  if (it == recentBooks.end() || it->progressPercent == percent) return;
+  it->progressPercent = percent;
   saveToFile();
 }
 

@@ -3,6 +3,7 @@
 #include <CivilDate.h>
 #include <HalClock.h>
 #include <HalDisplay.h>
+#include <HalPowerManager.h>
 #include <I18n.h>
 
 #include <algorithm>
@@ -172,6 +173,12 @@ void CalendarScreen::render(GfxRenderer& renderer) {
       }
     }
   }
+
+  // Battery, bottom-right: this screen stands for days on the desk.
+  char batt[8];
+  snprintf(batt, sizeof(batt), "%u%%", static_cast<unsigned>(powerManager.getBatteryPercentage()));
+  renderer.drawText(SMALL_FONT_ID, width - SIDE - renderer.getTextWidth(SMALL_FONT_ID, batt),
+                    height - 20 - renderer.getLineHeight(SMALL_FONT_ID) / 2, batt, true);
 
   renderer.setOrientation(savedOrientation);
   renderer.displayBuffer(HalDisplay::HALF_REFRESH);

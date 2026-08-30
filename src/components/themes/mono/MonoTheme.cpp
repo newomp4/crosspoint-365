@@ -7,6 +7,7 @@
 #include <I18n.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <string>
 
 #include "RecentBooksStore.h"
@@ -157,7 +158,9 @@ void MonoTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   const int titleLineHeight = renderer.getLineHeight(UI_12_FONT_ID);
   const int authorHeight = book.author.empty() ? 0 : renderer.getLineHeight(UI_10_FONT_ID) + 4;
   const int hintHeight = renderer.getLineHeight(SMALL_FONT_ID) + 10;
-  const int blockHeight = titleLineHeight * static_cast<int>(titleLines.size()) + authorHeight + hintHeight;
+  const int progressHeight = book.progressPercent <= 100 ? renderer.getLineHeight(SMALL_FONT_ID) + 6 : 0;
+  const int blockHeight =
+      titleLineHeight * static_cast<int>(titleLines.size()) + authorHeight + progressHeight + hintHeight;
   int y = cardY + (cardHeight - blockHeight) / 2;
   for (const auto& line : titleLines) {
     renderer.drawText(UI_12_FONT_ID, textX, y, line.c_str(), true, EpdFontFamily::BOLD);
@@ -170,6 +173,21 @@ void MonoTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     y += renderer.getLineHeight(UI_10_FONT_ID);
   }
   y += 10;
+  if (book.progressPercent <= 100) {
+    // Thin progress bar with the percent alongside, above the hint line.
+    char pct[8];
+    snprintf(pct, sizeof(pct), "%u%%", static_cast<unsigned>(book.progressPercent));
+    const int pctWidth = renderer.getTextWidth(SMALL_FONT_ID, pct);
+    const int barWidth = textWidth - pctWidth - 10;
+    const int barY = y + (renderer.getLineHeight(SMALL_FONT_ID) - 6) / 2;
+    if (barWidth > 30) {
+      renderer.fillRoundedRect(textX, barY, barWidth, 6, 3, Color::White);
+      const int fill = std::max(6, barWidth * book.progressPercent / 100);
+      renderer.fillRoundedRect(textX, barY, fill, 6, 3, Color::Black);
+      renderer.drawText(SMALL_FONT_ID, textX + barWidth + 10, y, pct, true);
+      y += renderer.getLineHeight(SMALL_FONT_ID) + 6;
+    }
+  }
   renderer.drawText(SMALL_FONT_ID, textX, y, tr(STR_CONTINUE_READING), true);
 
   if (selectorIndex == 0) {
