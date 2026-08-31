@@ -361,6 +361,9 @@ void maybeRunCalendarSleepLoop() {
   // Consecutive failed cycles stretch the wait (up to 4x): a dead network or
   // broken link must not burn six Wi-Fi joins an hour for nothing.
   uint8_t failStreak = 0;
+  uint8_t apBssid[6] = {0};
+  int32_t apChannel = 0;
+  bool apPinned = false;
   while (true) {
     if (!gpio.isUsbConnected() && powerManager.getBatteryPercentage() < MIN_BATTERY_PERCENT) {
       // Disarm the light-sleep sources: a timer left armed here would wake the
@@ -400,26 +403,51 @@ void maybeRunCalendarSleepLoop() {
     const std::string ssid = WIFI_STORE.getLastConnectedSsid();
     if (ssid.empty()) continue;
     const auto cred = WIFI_STORE.findCredential(ssid);
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid.c_str(), cred && !cred->password.empty() ? cred->password.c_str() : nullptr);
+    const char* pass = cred && !cred->password.empty() ? cred->password.c_str() : nullptr;
     const int pressedLevel = activeHigh ? HIGH : LOW;
-    bool connected = false;
-    for (int i = 0; i < 100 && !connected; i++) {  // up to 10 s
-      // The refresh window must not swallow a wake press: joining Wi-Fi takes
-      // seconds, and an ignored power button reads as a dead device.
-      if (digitalRead(powerPin) == pressedLevel) {
-        LOG_INF("CAL", "Power button during refresh; waking");
-        WiFi.disconnect(true);
-        WiFi.mode(WIFI_OFF);
-        wakeFromCalendarSleepLoop();
+
+    // Waits for the join, honoring the power button: an ignored press during
+    // the multi-second window reads as a dead device.
+    const auto joinWait = [&](const int tenths) {
+      for (int i = 0; i < tenths; i++) {
+        if (digitalRead(powerPin) == pressedLevel) {
+          LOG_INF("CAL", "Power button during refresh; waking");
+          WiFi.disconnect(true);
+          WiFi.mode(WIFI_OFF);
+          wakeFromCalendarSleepLoop();
+        }
+        if (WiFi.status() == WL_CONNECTED) return true;
+        delay(100);
       }
-      connected = WiFi.status() == WL_CONNECTED;
-      delay(100);
+      return WiFi.status() == WL_CONNECTED;
+    };
+
+    // Pinning the AP's channel and BSSID from the previous cycle skips the
+    // all-channel scan — the join drops from ~5-10 s to ~1-2 s, most of what a
+    // wake costs. A stale pin (AP hopped channels) falls back to one plain
+    // join before the cycle counts as failed.
+    WiFi.mode(WIFI_STA);
+    if (apPinned) {
+      WiFi.begin(ssid.c_str(), pass, apChannel, apBssid);
+    } else {
+      WiFi.begin(ssid.c_str(), pass);
+    }
+    bool connected = joinWait(apPinned ? 60 : 100);
+    if (!connected && apPinned) {
+      apPinned = false;
+      WiFi.disconnect(true);
+      WiFi.begin(ssid.c_str(), pass);
+      connected = joinWait(100);
     }
     if (!connected) {
       LOG_INF("CAL", "Calendar loop: Wi-Fi join failed");
       failStreak++;
       continue;
+    }
+    if (!apPinned && WiFi.BSSID() != nullptr) {
+      memcpy(apBssid, WiFi.BSSID(), sizeof(apBssid));
+      apChannel = WiFi.channel();
+      apPinned = true;
     }
     const int32_t offsetMinutes = (static_cast<int32_t>(SETTINGS.clockUtcOffsetQ) - 48) * 15;
     if (CALENDAR.refresh(halClock.getEpochSeconds(), offsetMinutes) == CalendarStore::RefreshResult::Ok) {
